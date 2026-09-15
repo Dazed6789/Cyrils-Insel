@@ -34,7 +34,12 @@ function scaleCanvas() {
 }
 
 function setBottomContainer() {
-    var buttonOffset = $("#buttonCont").offset().top;
+    /* v69: #buttonCont war die Zeile mit den Teilen-Knoepfen und wurde beim
+       Entfernen der Social-/Tracking-Elemente geloescht. Ohne Fallback warf
+       .offset() hier und riss die komplette Initialisierung mit - das Spiel
+       blieb leer. Fehlt das Element, dient der untere Bildrand als Bezug. */
+    var buttonCont = $("#buttonCont");
+    var buttonOffset = buttonCont.length ? buttonCont.offset().top : window.innerHeight;
     var playOffset = trueCanvas.height / 2 + 100 * settings.scale;
     var delta = buttonOffset - playOffset - 29;
     if (delta < 0) {
@@ -45,7 +50,8 @@ function setBottomContainer() {
 function set_score_pos() {
     $("#container").css('margin-top', '0');
     var middle_of_container = ($("#container").height()/2 + $("#container").offset().top);
-    var top_of_bottom_container = $("#buttonCont").offset().top
+    var buttonCont2 = $("#buttonCont");
+    var top_of_bottom_container = buttonCont2.length ? buttonCont2.offset().top : window.innerHeight;
     var igt = $("#highScoreInGameText")
     var igt_bottom = igt.offset().top + igt[0].offsetHeight
     var target_midpoint = (top_of_bottom_container + igt_bottom)/2
@@ -337,7 +343,7 @@ function isInfringing(hex) {
 function checkGameOver() {
 	for (var i = 0; i < MainHex.sides; i++) {
 		if (isInfringing(MainHex)) {
-			$.get('http://54.183.184.126/' + String(score))
+			/* v69 entfernt: Punktestand wurde an einen fremden Server geschickt. */
 			if (highscores.indexOf(score) == -1) {
 				highscores.push(score);
 			}
@@ -362,7 +368,10 @@ function showHelp() {
 		}
 	}
 
-	$("#inst_main_body").html("<div id = 'instructions_head'>HOW TO PLAY</div><p>The goal of Hextris is to stop blocks from leaving the inside of the outer gray hexagon.</p><p>" + (settings.platform != 'mobile' ? 'Press the right and left arrow keys' : 'Tap the left and right sides of the screen') + " to rotate the Hexagon." + (settings.platform != 'mobile' ? ' Press the down arrow to speed up the block falling': '') + " </p><p>Clear blocks and get points by making 3 or more blocks of the same color touch.</p><p>Time left before your combo streak disappears is indicated by <span style='color:#f1c40f;'>the</span> <span style='color:#e74c3c'>colored</span> <span style='color:#3498db'>lines</span> <span style='color:#2ecc71'>on</span> the outer hexagon</p> <hr> <p id = 'afterhr'></p> By <a href='http://loganengstrom.com' target='_blank'>Logan Engstrom</a> & <a href='http://github.com/garrettdreyfus' target='_blank'>Garrett Finucane</a><br>Find Hextris on <a href = 'https://itunes.apple.com/us/app/id903769553?mt=8' target='_blank'>iOS</a> & <a href ='https://play.google.com/store/apps/details?id=com.hextris.hextris' target='_blank'>Android</a><br>More @ the <a href ='http://hextris.github.io/' target='_blank'>Hextris Website</a>");
+	/* v69: Hilfetext auf Deutsch und ohne Verweise nach draussen (iOS-/Android-Store,
+	   Hextris-Website, Autorenseiten). Die Urheberangabe bleibt als Text stehen - die
+	   GPL verlangt sie, ein Link dorthin ist dafuer nicht noetig. */
+	$("#inst_main_body").html("<div id = 'instructions_head'>SO GEHT ES</div><p>Halte die Bloecke davon ab, aus dem grauen Sechseck zu fallen.</p><p>" + (settings.platform != 'mobile' ? 'Mit den Pfeiltasten links und rechts' : 'Tippe links oder rechts auf den Bildschirm') + " drehst du das Sechseck." + (settings.platform != 'mobile' ? ' Pfeil nach unten laesst den Block schneller fallen.': '') + " </p><p>Bringe drei oder mehr Bloecke derselben Farbe zusammen - dann verschwinden sie und geben Punkte.</p><p>Die <span style='color:#f1c40f;'>farbigen</span> <span style='color:#e74c3c'>Linien</span> <span style='color:#3498db'>am</span> <span style='color:#2ecc71'>Rand</span> zeigen, wie lange deine Punkteserie noch laeuft.</p> <hr> <p id = 'afterhr'></p> Hextris von Logan Engstrom und Garrett Finucane (GPL-3.0)");
 	if (gameState == 1) {
 		pause();
 	}
@@ -375,8 +384,4 @@ function showHelp() {
 	$('#helpScreen').fadeToggle(150, "linear");
 }
 
-(function(){
-    	var script = document.createElement('script');
-	script.src = 'http://hextris.io/a.js';
-	document.head.appendChild(script);
-})()
+/* v69 entfernt: lud ein fremdes Skript von hextris.io nach. */
