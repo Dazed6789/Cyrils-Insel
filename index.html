@@ -153,6 +153,37 @@ button{font-family:var(--font-main); letter-spacing:var(--letter-spacing-base); 
 .spielstat td{ padding:6px 8px; border-bottom:1px solid rgba(0,0,0,.07); white-space:nowrap; }
 .spielstat tr.blass td{ opacity:.45; }
 .admin-inhalt{ overflow-x:auto; }
+.vt-auswahl{ text-align:left; }
+.vt-block-titel{ font-weight:800; margin:14px 0 6px; }
+.vt-leise{ color:var(--ink-soft); font-weight:400; font-size:.85rem; }
+.vt-chips{ display:flex; flex-wrap:wrap; gap:8px; }
+.vt-chip{ border:2px solid #cdd3dd; background:#fcfcfd; border-radius:14px; padding:8px 12px; font-weight:700; font-size:.9rem; cursor:pointer; display:flex; align-items:center; gap:6px; }
+.vt-chip.aktiv{ border-color:#2f9e5f; background:#e7f6ed; }
+.vt-zahl{ font-size:.75rem; color:var(--ink-soft); font-weight:700; }
+.vt-bilanz{ margin:14px 0 10px; font-weight:800; }
+.vt-leiste{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px; }
+.vt-uhr{ font-size:1.4rem; font-weight:800; font-variant-numeric:tabular-nums; }
+.vt-uhr.knapp{ color:#c2413f; }
+.vt-stand{ color:var(--ink-soft); font-size:.9rem; }
+.vt-stop{ font-size:.8rem; padding:6px 12px; }
+.vt-karte{ text-align:center; }
+.vt-frage{ font-size:1.9rem; font-weight:800; margin:6px 0 2px; }
+.vt-anweisung{ color:var(--ink-soft); margin-bottom:12px; }
+.vt-rueckmeldung{ min-height:2.6em; margin-top:10px; display:flex; flex-direction:column; gap:4px; align-items:center; }
+.vt-gut{ color:#1e6b41; font-weight:800; }
+.vt-daneben{ color:#8f2e2c; font-weight:800; }
+.vt-neutral{ color:var(--ink-soft); }
+.vt-zusatz{ font-size:.9rem; color:var(--ink-soft); }
+.vt-eingabe{ font-size:1.3rem; padding:10px 14px; border-radius:14px; border:2px solid #cdd3dd; width:min(100%,320px); text-align:center; margin-bottom:10px; }
+.vt-bilanz-karte{ text-align:center; }
+.vt-quote{ font-size:3rem; font-weight:800; line-height:1; }
+.vt-spruch{ font-size:1rem; margin:0 0 10px; }
+.vt-lohn{ font-weight:800; margin-bottom:8px; }
+.vt-wortliste{ display:flex; flex-wrap:wrap; gap:6px; justify-content:center; }
+.vt-wort{ border-radius:10px; padding:5px 9px; font-size:.88rem; font-weight:700; }
+.vt-wort.gut{ background:#e7f6ed; color:#1e6b41; }
+.vt-wort.schlecht{ background:#fbeaea; color:#8f2e2c; }
+.vt-de{ font-weight:400; opacity:.75; }
 .simon-feld{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; max-width:320px; margin:0 auto; }
 .simon-pad{ aspect-ratio:1/1; border:0; border-radius:20px; cursor:pointer; transition:background .08s linear; }
 .koffer-streifen{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:12px 0; min-height:62px; }
@@ -4113,6 +4144,19 @@ function elapsedSessionMs() { return Date.now() - session.startedAt; }
    ========================================================================= */
 const SPECIAL_MISSIONS = [
   {
+    /* v82 (Joules Auftrag 12.10.2026): gezieltes Pauken vor einer Schulprobe.
+       Bewusst ganz oben in der Liste - wenn eine Probe ansteht, ist das die
+       Mission, die man sucht. */
+    id: 'vokabeltraining',
+    titel: 'Vokabeltest üben',
+    text: 'Unit und Thema wählen, dann fünf Minuten gezielt abfragen – sprechen, antippen, schreiben.',
+    icon: 'book',
+    kind: 'screen',
+    start: () => renderVokabeltraining(),
+    belohnung: { gems: 3, bauzeitSec: 180 },
+    verfuegbar: () => VOCAB.filter(v => !String(v.cat).startsWith('grammar')).length >= 8,
+  },
+  {
     id: 'review_run',
     titel: 'Auffrischungs-Runde',
     text: 'Nur Wörter, die schon eine Weile her sind – quer über alle Inseln.',
@@ -4343,6 +4387,386 @@ function buildSpecialQueue(id) {
     return { phase: 'practice', type: shuffle(cyc.slice())[0], target: wid };
   });
 }
+/* =========================================================================
+   SONDERMISSION: VOKABELTEST-VORBEREITUNG (v82, Joules Auftrag 12.10.2026)
+
+   Zweck ist nicht Entdecken, sondern Pauken vor einer Schulprobe: Buch,
+   Unit und Thema auswaehlen, dann fuenf Minuten konzentriert abfragen.
+
+   Entscheidungen (mit Joule abgestimmt):
+   - Nur das eingestellte Buch steht zur Auswahl. Ein Buchwechsel gehoert
+     ins Profil, nicht in den Teststart.
+   - Deutsch -> Englisch wird GESPROCHEN (das gewohnte Mikro-Format),
+     Englisch -> Deutsch wird ANGETIPPT. Grund: der Erkennungsdienst hoert
+     nur Englisch, eine deutsche Antwort koennte er gar nicht pruefen.
+   - Jede zehnte Aufgabe wird getippt. Da zaehlt die Schreibweise - aber
+     grosszuegig, siehe vtTippPasst().
+   - Fehler kosten nichts: wie bei allen Sondermissionen wird nur
+     gutgeschrieben (siehe Abschnitt 38.1). Treffer zaehlen auf die
+     Erfolgsquote und die Mastery-Tage ein.
+   ========================================================================= */
+const VT_DAUER_SEC = 300;              // 5 Minuten je Lektion
+const VT_ANTEIL_TIPPEN = 0.10;         // jede zehnte Aufgabe wird geschrieben
+const VT_ANTEIL_ANTIPPEN = 0.30;       // Englisch -> Deutsch zum Antippen
+var vtTimerId = null;
+
+function vtNorm(s) {
+  return String(s).toLowerCase()
+    .replace(/^(a |an |to |the )/, '')
+    .replace(/[^a-z0-9äöüß ]/g, ' ')
+    .replace(/\s+/g, ' ').trim();
+}
+/* Grosszuegig, weil Cyril LRS hat.
+   WICHTIG: Buchstabendreher zaehlen als EIN Fehler, nicht als zwei. Die
+   gewoehnliche Levenshtein-Distanz wertet "nien" gegen "nine" als zwei
+   Aenderungen - im ersten Test fiel genau dieser Tippfehler durch, obwohl er
+   der haeufigste bei LRS ueberhaupt ist. Deshalb Damerau-Levenshtein, das
+   den Dreher als eine Operation kennt. */
+function vtDistanz(a, b) {
+  const m = a.length, n = b.length;
+  const d = [];
+  for (let i = 0; i <= m; i++) { d[i] = [i]; }
+  for (let j = 0; j <= n; j++) { d[0][j] = j; }
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const kosten = a[i - 1] === b[j - 1] ? 0 : 1;
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + kosten);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);   // Dreher
+      }
+    }
+  }
+  return d[m][n];
+}
+function vtToleranz(wort) {
+  const n = String(wort).replace(/\s+/g, '').length;
+  return n <= 3 ? 1 : (n <= 6 ? 2 : 3);
+}
+function vtTippPasst(eingabe, ziel) {
+  const a = vtNorm(eingabe), b = vtNorm(ziel);
+  if (!a) return false;
+  if (a === b) return true;
+  if (a.replace(/\s+/g, '') === b.replace(/\s+/g, '')) return true;
+  return vtDistanz(a, b) <= vtToleranz(b);
+}
+
+/* Welche Woerter gehoeren zur gewaehlten Auswahl? Grammatikkarten bleiben
+   aussen vor - die gehoeren in den Lernpfad, nicht in eine Vokabelabfrage. */
+function vtPool(units, cats) {
+  return VOCAB.filter(v => !String(v.cat).startsWith('grammar')
+    && units.indexOf(v.unit || 'intro') >= 0
+    && (!cats.length || cats.indexOf(v.cat) >= 0));
+}
+function vtBuchName() {
+  const c = progress.curriculum;
+  return c === 'bl' ? 'Blue Line 5' : c === 'rs' ? 'Go ahead 5' : c === 'go6' ? 'Go ahead 6' : 'Highlight 5';
+}
+
+/* ---------- Auswahl: Buch, Unit, Thema ---------------------------------- */
+function renderVokabeltraining() {
+  pauseBuilder();
+  if (vtTimerId) { clearInterval(vtTimerId); vtTimerId = null; }
+  progress.vtAuswahl = progress.vtAuswahl || { units: [], cats: [] };
+  let units = progress.vtAuswahl.units.filter(u => ISLAND_SEQUENCE.indexOf(u) >= 0);
+  if (!units.length) units = [progress.current_island_id].filter(u => ISLAND_SEQUENCE.indexOf(u) >= 0);
+  let cats = progress.vtAuswahl.cats.slice();
+
+  function zeichne() {
+    const themenRoh = {};
+    vtPool(units, []).forEach(v => { themenRoh[v.cat] = (themenRoh[v.cat] || 0) + 1; });
+    const themen = Object.keys(themenRoh).sort((a, b) => catLabel(a).localeCompare(catLabel(b)));
+    cats = cats.filter(c => themen.indexOf(c) >= 0);
+    const auswahl = vtPool(units, cats);
+    app.innerHTML = `
+      ${renderMissionHeader()}
+      <div class='session-shell'>
+        <div class='card vt-auswahl'>
+          <h2 style='margin:0 0 4px;'>📝 Vokabeltest üben</h2>
+          <p class='map-sub' style='margin:0 0 14px;'>Buch: <strong>${vtBuchName()}</strong> · fünf Minuten, überwiegend laut sprechen.</p>
+          <div class='vt-block-titel'>Welche Unit?</div>
+          <div class='vt-chips'>
+            ${ISLAND_SEQUENCE.map(id => `<button class='vt-chip ${units.indexOf(id) >= 0 ? 'aktiv' : ''}' data-unit='${id}'>${(ISLAND_META[id] || {}).label || id}<span class='vt-zahl'>${vtPool([id], []).length}</span></button>`).join('')}
+          </div>
+          <div class='vt-block-titel'>Welche Themen? <span class='vt-leise'>(nichts angetippt = alle)</span></div>
+          <div class='vt-chips'>
+            ${themen.length ? themen.map(c => `<button class='vt-chip ${cats.indexOf(c) >= 0 ? 'aktiv' : ''}' data-cat='${c}'>${catLabel(c)}<span class='vt-zahl'>${themenRoh[c]}</span></button>`).join('') : `<span class='vt-leise'>Wähle zuerst eine Unit.</span>`}
+          </div>
+          <div class='vt-bilanz'>${auswahl.length} Wörter ausgewählt</div>
+          <button class='primary-btn' id='vtStart' ${auswahl.length < 4 ? 'disabled' : ''}>Los geht's – 5 Minuten</button>
+          <button class='secondary-btn' id='vtZurueck' style='margin-top:10px;'>← Zurück</button>
+        </div>
+      </div>`;
+    app.querySelectorAll('[data-unit]').forEach(b => b.onclick = () => {
+      const id = b.dataset.unit; const i = units.indexOf(id);
+      if (i >= 0) units.splice(i, 1); else units.push(id);
+      zeichne();
+    });
+    app.querySelectorAll('[data-cat]').forEach(b => b.onclick = () => {
+      const c = b.dataset.cat; const i = cats.indexOf(c);
+      if (i >= 0) cats.splice(i, 1); else cats.push(c);
+      zeichne();
+    });
+    document.getElementById('vtZurueck').onclick = () => renderMap();
+    const start = document.getElementById('vtStart');
+    if (start) start.onclick = () => {
+      progress.vtAuswahl = { units: units.slice(), cats: cats.slice() };
+      saveProgress();
+      vtLektion(auswahl.map(v => v.id));
+    };
+  }
+  zeichne();
+}
+
+/* ---------- Die Lektion: fuenf Minuten ---------------------------------- */
+function vtLektion(ids) {
+  pauseBuilder();
+  /* Wie der bestehende Vokabeltest ein Sitzungsobjekt setzen: reviewResult()
+     erkennt daran die Sondermission und zieht bei Fehlern nichts ab. */
+  session = { special: 'vokabeltraining', history: [], current: null, errorFree: true };
+  const ende = Date.now() + VT_DAUER_SEC * 1000;
+  let warteschlange = shuffle(ids.slice());
+  const ergebnis = new Map();   // id -> { v, ok, art }
+  let gestellt = 0, laeuftAb = false, aktuellerAbbruch = null;
+
+  function restSek() { return Math.max(0, Math.round((ende - Date.now()) / 1000)); }
+  function zeitText() { const s = restSek(); return String(Math.floor(s / 60)) + ':' + String(s % 60).padStart(2, '0'); }
+
+  if (vtTimerId) clearInterval(vtTimerId);
+  vtTimerId = setInterval(() => {
+    const el = document.getElementById('vtZeit');
+    if (el) { el.textContent = zeitText(); el.classList.toggle('knapp', restSek() <= 30); }
+    if (restSek() <= 0) { laeuftAb = true; clearInterval(vtTimerId); vtTimerId = null;
+      const h = document.getElementById('vtHinweisZeit'); if (h) h.textContent = 'Zeit ist um – diese Vokabel noch, dann sind wir durch.'; }
+  }, 1000);
+
+  function aufraeumen() {
+    if (vtTimerId) { clearInterval(vtTimerId); vtTimerId = null; }
+    if (aktuellerAbbruch) { try { aktuellerAbbruch(); } catch (e) {} aktuellerAbbruch = null; }
+  }
+  function beenden() { aufraeumen(); session = null; vtBilanz(ergebnis, ids, gestellt); }
+
+  /* Damit die Lektion auch in der Erfolgsstatistik PRO UEBUNGSART auftaucht,
+     bekommt reviewResult() einen Schritt mit passendem Typ vorgesetzt. Die
+     drei Abfragearten werden auf bestehende Typen abgebildet, statt neue
+     einzufuehren: gesprochen -> speak-word, angetippt -> translate-choose,
+     getippt -> word-build (beides "das Wort herstellen"). */
+  const VT_TYP = { gesprochen: 'speak-word', angetippt: 'translate-choose', getippt: 'word-build' };
+  function merke(v, ok, art) {
+    if (!ergebnis.has(v.id)) {
+      ergebnis.set(v.id, { v, ok, art });
+      session.current = { phase: 'practice', type: VT_TYP[art] || 'translate-choose', target: v.id };
+      reviewResult(v.id, ok);     // zaehlt auf Erfolgsquote, Fertigkeiten und Mastery ein
+      session.current = null;
+    }
+    gestellt++;
+    if (!ok) warteschlange.push(v.id);   // falsch beantwortet? kommt wieder
+  }
+
+  function weiter() {
+    if (laeuftAb || !warteschlange.length) { beenden(); return; }
+    naechste();
+  }
+
+  function kopf(v, aufgabe) {
+    const geschafft = ergebnis.size;
+    return `
+      ${renderMissionHeader()}
+      <div class='session-shell'>
+        <div class='vt-leiste'>
+          <span class='vt-uhr' id='vtZeit'>${zeitText()}</span>
+          <span class='vt-stand'>${geschafft} von ${ids.length} Wörtern</span>
+          <button class='secondary-btn vt-stop' id='vtStop'>Schluss</button>
+        </div>
+        <div class='map-sub' id='vtHinweisZeit' style='text-align:center;min-height:1.1em;font-size:.85rem;'></div>
+        ${aufgabe}
+      </div>`;
+  }
+  function stopKnopf() { const b = document.getElementById('vtStop'); if (b) b.onclick = () => { laeuftAb = true; beenden(); }; }
+
+  /* Welche Abfrageart kommt dran? Reihenfolge gewuerfelt, Anteile fest. */
+  function naechste() {
+    const id = warteschlange.shift();
+    const v = VOCAB.find(x => x.id === id);
+    if (!v) { weiter(); return; }
+    const w = Math.random();
+    if (w < VT_ANTEIL_TIPPEN) tippen(v);
+    else if (w < VT_ANTEIL_TIPPEN + VT_ANTEIL_ANTIPPEN) antippen(v);
+    else if (whisperSupported()) sprechen(v);
+    else antippen(v);
+  }
+
+  /* --- Deutsch -> Englisch, gesprochen (das gewohnte Format) --- */
+  function sprechen(v) {
+    app.innerHTML = kopf(v, `
+      <div class='card vt-karte'>
+        <div class='q-topic'>${catLabel(v.cat)}</div>
+        <div class='icon-wrap'>${iconFor(v.icon)}</div>
+        <div class='vt-frage'>${v.de}</div>
+        <div class='vt-anweisung'>Sag es laut auf Englisch.</div>
+        <div id='vtAktion'></div>
+        <div class='vt-rueckmeldung' id='vtFeedback'></div>
+      </div>`);
+    stopKnopf();
+    const slot = document.getElementById('vtAktion');
+    const rueck = document.getElementById('vtFeedback');
+    slot.innerHTML = `<button class='primary-btn' id='vtMic'>${uiIcon('mic',18)} Jetzt sprechen</button>`;
+    const btn = document.getElementById('vtMic');
+    const original = btn.innerHTML;
+    btn.onclick = () => {
+      btn.disabled = true; btn.innerHTML = '';
+      const setLevel = renderMicWave(btn);
+      let fertig = false;
+      const schluss = () => { btn.disabled = false; btn.innerHTML = original; aktuellerAbbruch = null; };
+      aktuellerAbbruch = captureAndTranscribe({
+        hint: v.en, onLevel: setLevel,
+        onDone: (text) => {
+          if (fertig) return; fertig = true; schluss();
+          if (!String(text || '').trim() || !/[a-zA-Z]/.test(String(text))) {
+            rueck.innerHTML = `<span class='vt-neutral'>Nichts verstanden – tipp nochmal und sprich gleich los.</span>`;
+            return;   // kostet keinen Versuch, das Wort bleibt dran
+          }
+          const ok = speechMatches(text, v.en);
+          aufloesen(v, ok, 'gesprochen', ok ? '' : 'Verstanden: „' + String(text).trim() + '“');
+        },
+        onError: (grund) => {
+          if (fertig) return; fertig = true; schluss();
+          if (grund === 'permission') { rueck.innerHTML = `<span class='vt-neutral'>Kein Mikro – ich frage stattdessen zum Antippen.</span>`; setTimeout(() => antippen(v), 900); }
+          else rueck.innerHTML = `<span class='vt-neutral'>Nichts gehört – nochmal antippen.</span>`;
+        }
+      });
+    };
+  }
+
+  /* --- Englisch -> Deutsch, antippen --- */
+  function antippen(v) {
+    const andere = shuffle(VOCAB.filter(x => !String(x.cat).startsWith('grammar') && x.id !== v.id && x.de && x.de !== v.de));
+    const gleichesThema = andere.filter(x => x.cat === v.cat).slice(0, 3);
+    const rest = andere.filter(x => gleichesThema.indexOf(x) < 0).slice(0, 3);
+    const falsche = gleichesThema.concat(rest).slice(0, 3);
+    const optionen = shuffle([v].concat(falsche));
+    app.innerHTML = kopf(v, `
+      <div class='card vt-karte'>
+        <div class='q-topic'>${catLabel(v.cat)}</div>
+        <div class='icon-wrap'>${iconFor(v.icon)}</div>
+        <div class='vt-frage'>${v.en}</div>
+        <div class='vt-anweisung'>Was heißt das auf Deutsch?</div>
+        <div class='options single-col' id='vtOpts'>
+          ${optionen.map(o => `<button class='opt-btn' data-id='${o.id}'>${o.de}</button>`).join('')}
+        </div>
+        <div class='vt-rueckmeldung' id='vtFeedback'></div>
+      </div>`);
+    stopKnopf();
+    speak(v.en);
+    let schonFalsch = false;
+    app.querySelectorAll('#vtOpts .opt-btn').forEach(b => b.onclick = () => {
+      if (b.disabled) return;
+      if (b.dataset.id === v.id) {
+        b.classList.add('correct');
+        app.querySelectorAll('#vtOpts .opt-btn').forEach(x => x.disabled = true);
+        aufloesen(v, !schonFalsch, 'angetippt', '');
+      } else {
+        schonFalsch = true;
+        b.classList.add('retry'); b.disabled = true;
+        feedback(false);
+      }
+    });
+  }
+
+  /* --- Deutsch -> Englisch, getippt. Hier zaehlt die Schreibweise --- */
+  function tippen(v) {
+    app.innerHTML = kopf(v, `
+      <div class='card vt-karte'>
+        <div class='q-topic'>${catLabel(v.cat)}</div>
+        <div class='icon-wrap'>${iconFor(v.icon)}</div>
+        <div class='vt-frage'>${v.de}</div>
+        <div class='vt-anweisung'>Schreib das englische Wort.</div>
+        <input class='vt-eingabe' id='vtInput' type='text' autocomplete='off' autocapitalize='off' autocorrect='off' spellcheck='false' placeholder='hier tippen'>
+        <button class='primary-btn' id='vtPruefen'>Prüfen</button>
+        <div class='vt-rueckmeldung' id='vtFeedback'></div>
+      </div>`);
+    stopKnopf();
+    const feld = document.getElementById('vtInput');
+    const pruef = document.getElementById('vtPruefen');
+    setTimeout(() => { try { feld.focus(); } catch (e) {} }, 120);
+    const abschicken = () => {
+      if (pruef.disabled) return;
+      const eingabe = feld.value;
+      if (!String(eingabe).trim()) return;
+      pruef.disabled = true; feld.disabled = true;
+      const genau = vtNorm(eingabe) === vtNorm(v.en);
+      const ok = vtTippPasst(eingabe, v.en);
+      /* Auch ein angenommener Tippfehler bekommt die richtige Schreibweise
+         zu sehen - genau dafuer ist die Schreibaufgabe ja da. */
+      aufloesen(v, ok, 'getippt', (ok && genau) ? '' : 'Richtig geschrieben: <strong>' + v.en + '</strong>');
+    };
+    pruef.onclick = abschicken;
+    feld.onkeydown = (e) => { if (e.key === 'Enter') abschicken(); };
+  }
+
+  /* Gemeinsame Aufloesung: Ergebnis merken, zeigen, weiter. */
+  function aufloesen(v, ok, art, zusatz) {
+    merke(v, ok, art);
+    const rueck = document.getElementById('vtFeedback');
+    if (rueck) {
+      rueck.innerHTML = ok
+        ? `<span class='vt-gut'>✓ Richtig – <strong>${v.en}</strong></span>` + (zusatz ? `<span class='vt-zusatz'>${zusatz}</span>` : '')
+        : `<span class='vt-daneben'>Das Wort heißt <strong>${v.en}</strong></span>` + (zusatz ? `<span class='vt-zusatz'>${zusatz}</span>` : '');
+    }
+    if (ok) { setCyrilMood('highfive', { then: 'idle' }); speak(v.en); }
+    else { feedback(false); setCyrilMood('encourage_easy', { then: 'idle' }); speak(v.en); }
+    setTimeout(weiter, ok ? 1100 : 2200);
+  }
+
+  naechste();
+}
+
+/* ---------- Bilanz nach der Lektion ------------------------------------- */
+function vtBilanz(ergebnis, ids, gestellt) {
+  const liste = Array.from(ergebnis.values());
+  const richtig = liste.filter(e => e.ok);
+  const falsch = liste.filter(e => !e.ok);
+  const quote = liste.length ? Math.round(richtig.length / liste.length * 100) : 0;
+  /* Aufmunterung nach Quote - aber nie herablassend und nie mit erhobenem
+     Zeigefinger. Auch 40 % sind fuenf Minuten echte Arbeit. */
+  const spruch = liste.length === 0 ? 'Kein Wort geschafft – aber angefangen ist angefangen. Nimm dir eine kleinere Auswahl vor.'
+    : quote >= 90 ? 'Das sitzt. So kannst du in die Probe gehen.'
+    : quote >= 70 ? 'Stark! Ein paar Wörter fehlen noch – die schaffst du auch.'
+    : quote >= 50 ? 'Gute Grundlage. Mach gleich noch eine Runde mit denselben Wörtern.'
+    : 'Das war ein harter Satz Wörter. Jede Runde sitzt mehr – dranbleiben lohnt sich.';
+  /* Eintrag ins Sitzungsprotokoll, damit die Lektion in der Statistik
+     auftaucht wie jede andere Runde auch. */
+  try {
+    progress.session_log = progress.session_log || [];
+    progress.session_log.push({ d: dayStamp(0), t: Date.now(), ms: VT_DAUER_SEC * 1000,
+      n: liste.length, ok: richtig.length, err: falsch.length, steps: gestellt, neu: 0,
+      isl: progress.current_island_id, art: 'vokabeltraining', done: true });
+    while (progress.session_log.length > SESSION_LOG_MAX) progress.session_log.shift();
+    saveProgress();
+  } catch (e) {}
+  const m = specialById('vokabeltraining');
+  let lohn = null;
+  if (m && liste.length >= 5) { try { lohn = specialBelohnungGeben(m); } catch (e) {} }
+  app.innerHTML = `
+    ${renderMissionHeader()}
+    <div class='session-shell'>
+      <div class='card vt-bilanz-karte'>
+        <h2 style='margin:0 0 2px;'>Fünf Minuten geschafft</h2>
+        <div class='vt-quote'>${quote}%</div>
+        <div class='map-sub' style='margin:0 0 12px;'>${richtig.length} von ${liste.length} Wörtern auf Anhieb richtig</div>
+        <p class='vt-spruch'>${spruch}</p>
+        ${lohn && !lohn.schonHeute && (lohn.gems || lohn.sec) ? `<div class='vt-lohn'>+${lohn.gems} 💎 und +${Math.round(lohn.sec/60)} Min Spielzeit</div>` : ''}
+        ${richtig.length ? `<div class='vt-block-titel'>Saß sofort</div><div class='vt-wortliste'>${richtig.map(e => `<span class='vt-wort gut'>${e.v.en} <span class='vt-de'>${e.v.de}</span></span>`).join('')}</div>` : ''}
+        ${falsch.length ? `<div class='vt-block-titel'>Nochmal anschauen</div><div class='vt-wortliste'>${falsch.map(e => `<span class='vt-wort schlecht'>${e.v.en} <span class='vt-de'>${e.v.de}</span></span>`).join('')}</div>` : ''}
+        <button class='primary-btn' id='vtNochmal' style='margin-top:14px;'>Nochmal 5 Minuten</button>
+        <button class='secondary-btn' id='vtAndere' style='margin-top:8px;'>Andere Auswahl</button>
+        <button class='secondary-btn' id='vtFertig' style='margin-top:8px;'>Fertig</button>
+      </div>
+    </div>`;
+  document.getElementById('vtNochmal').onclick = () => vtLektion(ids);
+  document.getElementById('vtAndere').onclick = () => renderVokabeltraining();
+  document.getElementById('vtFertig').onclick = () => renderMap();
+}
+
 function startSpecial(id) {
   const m = specialById(id);
   if (!m) return;
@@ -13820,7 +14244,9 @@ const WHISPER_WAVE_BARS = 9;
    Kueche ist "still" lauter als in einem leeren Zimmer. */
 const WHISPER_SPRECH_SCHWELLE = 0.10;   // Mindestpegel, ab dem etwas als Sprache zaehlt
 const WHISPER_STILLE_MS = 900;          // so lange Stille beendet die Aufnahme
-const WHISPER_START_FENSTER_MS = 10000; // so lange warten wir auf den ersten Ton
+const WHISPER_START_FENSTER_MS = 6000;  // v83: von 10 s auf 6 s - lang genug zum Ueberlegen, kurz genug, dass ein Fehlversuch nicht ewig dauert
+const WHISPER_TOTMANN_MS = 1200;        // v83: so lange darf der Pegelmesser still bleiben, bevor wir ihm nicht mehr trauen
+const WHISPER_ERSATZDAUER_MS = 5000;    // v83: feste Aufnahmedauer, wenn der Pegelmesser ausfaellt
 const WHISPER_MIN_SPRECH_MS = 250;      // kuerzeres gilt als Huesteln, nicht als Wort
 const WHISPER_MAX_MS = 8000;            // harte Obergrenze fuer ein einzelnes Wort
 const WHISPER_GRUNDPEGEL_PROBEN = 12;   // Frames zum Einmessen des Raums
@@ -13865,7 +14291,22 @@ function captureAndTranscribe({ hint, onLevel, onDone, onError, recordMs }) {
      Die Ketten-Uebung reicht weiterhin ihr laengeres Fenster herein. */
   const hoechstdauer = recordMs || WHISPER_MAX_MS;
   let cancelled = false;
-  let stream = null, recorder = null, audioCtx = null, rafId = null;
+  let stream = null, recorder = null, rafId = null;
+  /* v83 (Joules Meldung 14.10.2026, iPad Air): Der Tonmesser wurde bisher ERST
+     im Erfolgsfall von getUserMedia angelegt - also asynchron, lange nach dem
+     Fingertipp. Safari auf iOS laesst eine AudioContext, die nicht waehrend
+     einer Nutzeraktion entsteht, im Zustand "suspended": sie liefert dann
+     konstant Stille. Damit sah die Sprechpausen-Erkennung aus v80 nie einen
+     Ton, wartete das volle Startfenster ab und schickte erst nach vielen
+     Sekunden etwas los. Auf Android fiel das nicht auf, auf dem iPad war die
+     Erkennung praktisch tot.
+     Jetzt wird die AudioContext noch im Klick angelegt und ausdruecklich
+     aufgeweckt. */
+  let audioCtx = null;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended' && audioCtx.resume) audioCtx.resume();
+  } catch (e) { audioCtx = null; }
 
   function cleanup() {
     if (rafId) cancelAnimationFrame(rafId);
@@ -13888,16 +14329,16 @@ function captureAndTranscribe({ hint, onLevel, onDone, onError, recordMs }) {
 
     /* v80: Der Pegelmesser lief bisher nur, wenn eine Wellenanzeige gewuenscht
        war. Jetzt laeuft er immer - er steuert das Ende der Aufnahme. */
-    {
+    if (audioCtx) {
       try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended' && audioCtx.resume) audioCtx.resume();
         const src = audioCtx.createMediaStreamSource(stream);
         const analyser = audioCtx.createAnalyser();
         analyser.fftSize = 256;
         src.connect(analyser);
         const data = new Uint8Array(analyser.frequencyBinCount);
         const begonnen = Date.now();
-        let grundpegel = 0, proben = 0;
+        let grundpegel = 0, proben = 0, tonGesehen = false;
         let hatGesprochen = false, letzterTon = 0, ersterTon = 0;
         const tick = () => {
           analyser.getByteTimeDomainData(data);
@@ -13908,6 +14349,18 @@ function captureAndTranscribe({ hint, onLevel, onDone, onError, recordMs }) {
           }
           if (onLevel) onLevel(Math.min(1, peak * 2.2));
           const jetzt = Date.now();
+          /* v83: Totmann-Schaltung. Liefert der Pegelmesser ueber laengere Zeit
+             exakt null Ausschlag, ist er nicht funktionsfaehig (iOS mit
+             schlafender AudioContext). Dann wird nicht ewig gewartet, sondern
+             nach einer festen, grosszuegigen Dauer gestoppt. */
+          if (peak > 0) tonGesehen = true;
+          if (!tonGesehen && jetzt - begonnen > WHISPER_TOTMANN_MS) {
+            if (jetzt - begonnen > WHISPER_ERSATZDAUER_MS) {
+              try { if (recorder && recorder.state === 'recording') recorder.stop(); } catch (e) {}
+            }
+            rafId = requestAnimationFrame(tick);
+            return;
+          }
           /* Erst den Raum einmessen, dann erst zuhoeren. */
           if (proben < WHISPER_GRUNDPEGEL_PROBEN) {
             grundpegel = Math.max(grundpegel, peak); proben++;
@@ -13935,8 +14388,15 @@ function captureAndTranscribe({ hint, onLevel, onDone, onError, recordMs }) {
       if (!chunks.length) { onError('no-audio'); return; }
       const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
       try {
+        /* v83: Dateiname passend zum tatsaechlichen Format. iOS nimmt in mp4
+           auf, nicht in webm. Der Worker leitet die Endung zwar selbst aus dem
+           MIME-Typ ab, aber ein richtiger Name schadet nie - und hilft, falls
+           dort noch eine aeltere Fassung laeuft. */
+        const mt = String(blob.type || '').toLowerCase();
+        const endung = mt.indexOf('mp4') >= 0 ? 'mp4' : mt.indexOf('mpeg') >= 0 ? 'mp3'
+          : mt.indexOf('ogg') >= 0 ? 'ogg' : mt.indexOf('wav') >= 0 ? 'wav' : 'webm';
         const form = new FormData();
-        form.append('audio', blob, 'audio.webm');
+        form.append('audio', blob, 'audio.' + endung);
         if (hint) form.append('hint', hint);
         const res = await fetch(WHISPER_PROXY_URL, { method: 'POST', body: form });
         if (cancelled) return;
@@ -14125,7 +14585,12 @@ function renderSpeakWord(body, step) {
           // Stille konsequent greift.
           registerMismatch("Ich habe nichts gehört. Versuch's nochmal - laut und nah am Mikro.", true);
         } else {
-          offerFallback("Mikro klappt gerade nicht - kein Problem.");
+          /* v83: 'upstream' heisst, der Erkennungsdienst antwortet nicht - etwa
+             weil der Zugangsschluessel abgelaufen ist. Das ist kein Mikrofon-
+             und erst recht kein Aussprachefehler, also auch nicht so benennen. */
+          offerFallback(reason === 'upstream'
+            ? "Die Spracherkennung antwortet gerade nicht - das liegt nicht an dir. Sag's laut und tipp auf den Haken."
+            : "Mikro klappt gerade nicht - kein Problem.");
         }
       }
     });
@@ -15761,7 +16226,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v81';
+const APP_VERSION = 'v83';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
