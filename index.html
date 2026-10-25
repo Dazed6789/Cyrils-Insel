@@ -153,6 +153,27 @@ button{font-family:var(--font-main); letter-spacing:var(--letter-spacing-base); 
 .spielstat td{ padding:6px 8px; border-bottom:1px solid rgba(0,0,0,.07); white-space:nowrap; }
 .spielstat tr.blass td{ opacity:.45; }
 .admin-inhalt{ overflow-x:auto; }
+.gt-wahlen{ display:flex; flex-direction:column; gap:10px; }
+.gt-wahl{ text-align:left; border:2px solid #cdd3dd; background:#fcfcfd; border-radius:16px; padding:12px 14px; cursor:pointer; display:flex; flex-direction:column; gap:3px; }
+.gt-wahl-titel{ font-weight:800; font-size:1.05rem; }
+.gt-wahl-text{ color:var(--ink-soft); font-size:.9rem; }
+.gt-wahl-stand{ font-size:.78rem; color:var(--ink-soft); font-weight:700; }
+.gt-zeile{ font-size:1.5rem; font-weight:700; margin:8px 0 14px; line-height:1.5; }
+.gt-phrase{ background:#e7f6ed; border-radius:8px; padding:2px 8px; }
+.gt-luecke{ display:inline-block; min-width:52px; border-bottom:3px solid #c65d4a; font-weight:800; }
+.gt-satz{ font-style:italic; }
+.gt-tafel{ margin-top:12px; text-align:left; }
+.gt-tafel summary{ cursor:pointer; font-weight:700; font-size:.9rem; color:var(--ink-soft); }
+.gt-tabelle{ margin-top:6px; font-size:.95rem; }
+.gt-tabelle td{ padding:2px 12px 2px 0; }
+.gt-balken{ display:flex; flex-direction:column; gap:6px; text-align:left; }
+.gt-balken-zeile{ display:grid; grid-template-columns:1fr 90px 42px; align-items:center; gap:8px; font-size:.88rem; }
+.gt-balken-spur{ background:#e8ebf0; border-radius:999px; height:9px; overflow:hidden; }
+.gt-balken-fuell{ display:block; height:100%; background:#2f9e5f; }
+.gt-balken-zahl{ text-align:right; font-weight:700; font-size:.85rem; }
+.gt-fehlerliste{ display:flex; flex-direction:column; gap:8px; text-align:left; }
+.gt-fehler{ background:#fbeaea; border-radius:10px; padding:7px 10px; display:flex; flex-direction:column; }
+.gt-fehler-satz{ font-weight:700; }
 .vt-auswahl{ text-align:left; }
 .vt-block-titel{ font-weight:800; margin:14px 0 6px; }
 .vt-leise{ color:var(--ink-soft); font-weight:400; font-size:.85rem; }
@@ -4147,6 +4168,19 @@ const SPECIAL_MISSIONS = [
     /* v82 (Joules Auftrag 12.10.2026): gezieltes Pauken vor einer Schulprobe.
        Bewusst ganz oben in der Liste - wenn eine Probe ansteht, ist das die
        Mission, die man sucht. */
+    /* v84 (Joules Auftrag 25.10.2026): Grammatik nach den Mustern seiner
+       Arbeitsblaetter. Direkt neben der Vokabel-Vorbereitung, weil beides
+       zusammen die Probenvorbereitung ergibt. */
+    id: 'grammatiktrainer',
+    titel: 'Grammatik üben',
+    text: 'Personalpronomen und to be – nach den Mustern deiner Arbeitsblätter, mit immer neuen Sätzen.',
+    icon: 'book',
+    kind: 'screen',
+    start: () => renderGrammatiktrainer(),
+    belohnung: { gems: 3, bauzeitSec: 180 },
+    verfuegbar: () => true,
+  },
+  {
     id: 'vokabeltraining',
     titel: 'Vokabeltest üben',
     text: 'Unit und Thema wählen, dann fünf Minuten gezielt abfragen – sprechen, antippen, schreiben.',
@@ -4460,6 +4494,325 @@ function vtPool(units, cats) {
 function vtBuchName() {
   const c = progress.curriculum;
   return c === 'bl' ? 'Blue Line 5' : c === 'rs' ? 'Go ahead 5' : c === 'go6' ? 'Go ahead 6' : 'Highlight 5';
+}
+
+/* =========================================================================
+   SONDERMISSION: GRAMMATIK-TRAINER (v84, Joules Auftrag 25.10.2026)
+   Grundlage sind Cyrils Arbeitsblaetter - beruecksichtigt sind wie vorgegeben
+   nur Personalpronomen und to be. Die zwei Blaetter zu who/where/what/how
+   sind Fragewoerter und bleiben aussen vor.
+   Uebernommen sind die AUFGABENMUSTER, nicht die Saetze: die Blaetter stammen
+   teils aus Verlagsmaterial, und Joule will ohnehin immer neue Saetze. Sie
+   werden bei jedem Durchlauf aus eigenen Bausteinen kombiniert.
+     A Pronomen zuordnen   B Satz bilden (+/-)   C Form waehlen
+     D am/is/are ergaenzen E richtig oder falsch
+   ========================================================================= */
+const GT_DAUER_SEC = 300;
+var gtTimerId = null;
+const GT_SUBJEKTE = [
+  /* k = Art des Subjekts: p Person, a Tier, s Sache. Damit die zufaellig
+     zusammengesetzten Saetze inhaltlich stimmen - 'my pencil case is hungry'
+     waere grammatisch richtig, aber fuer ein Kind nur verwirrend. */
+  { t: 'Luca', p: 'he', z: 1, k: 'p' }, { t: 'Adam', p: 'he', z: 1, k: 'p' }, { t: 'Mr Preston', p: 'he', z: 1, k: 'p' },
+  { t: 'my brother', p: 'he', z: 1, k: 'p' }, { t: 'my dad', p: 'he', z: 1, k: 'p' }, { t: 'Tom', p: 'he', z: 1, k: 'p' },
+  { t: 'Ellie', p: 'she', z: 1, k: 'p' }, { t: 'Berry', p: 'she', z: 1, k: 'p' }, { t: 'Mrs Warren', p: 'she', z: 1, k: 'p' },
+  { t: 'my sister', p: 'she', z: 1, k: 'p' }, { t: 'my mum', p: 'she', z: 1, k: 'p' }, { t: 'Olivia', p: 'she', z: 1, k: 'p' },
+  { t: 'the dog', p: 'it', z: 1, k: 'a' }, { t: 'my pencil case', p: 'it', z: 1, k: 's' }, { t: 'the window', p: 'it', z: 1, k: 's' },
+  { t: 'our classroom', p: 'it', z: 1, k: 's' }, { t: 'the cat', p: 'it', z: 1, k: 'a' }, { t: 'my bike', p: 'it', z: 1, k: 's' },
+  { t: 'Tom and Jack', p: 'they', z: 2, k: 'p' }, { t: 'my friends', p: 'they', z: 2, k: 'p' },
+  { t: 'the girls', p: 'they', z: 2, k: 'p' }, { t: 'my parents', p: 'they', z: 2, k: 'p' },
+  { t: 'the boys in class 5c', p: 'they', z: 2, k: 'p' }, { t: 'Fluff and Honey', p: 'they', z: 2, k: 'a' },
+  { t: 'my friends and I', p: 'we', z: 2, k: 'p' }, { t: 'my mum and I', p: 'we', z: 2, k: 'p' },
+  { t: 'Luca and I', p: 'we', z: 2, k: 'p' }, { t: 'Cyril and I', p: 'we', z: 2, k: 'p' }
+];
+const GT_ENDEN = [
+  /* n = Zahl (b beide, 1 nur Singular), f = passende Subjektarten (s.o.). */
+  { t: 'at home', n: 'b', f: 'pas' }, { t: 'in the garden', n: 'b', f: 'pas' }, { t: 'at school', n: 'b', f: 'p' },
+  { t: 'in the classroom', n: 'b', f: 'pas' }, { t: 'very nice', n: 'b', f: 'pas' }, { t: 'happy', n: 'b', f: 'pa' },
+  { t: 'hungry', n: 'b', f: 'pa' }, { t: 'tired', n: 'b', f: 'pa' }, { t: 'from Plymouth', n: 'b', f: 'p' },
+  { t: 'from Germany', n: 'b', f: 'p' }, { t: 'in the house', n: 'b', f: 'pas' }, { t: 'under the table', n: 'b', f: 'pas' },
+  { t: 'ten years old', n: 'b', f: 'pas' }, { t: 'late', n: 'b', f: 'p' }, { t: 'in my class', n: 'b', f: 'p' },
+  { t: 'my best friend', n: '1', f: 'pa' }, { t: 'a good singer', n: '1', f: 'p' }, { t: 'good at Maths', n: 'b', f: 'p' },
+  { t: 'new', n: 'b', f: 's' }, { t: 'in my bag', n: 'b', f: 's' }, { t: 'really cool', n: 'b', f: 'as' }
+];
+function gtEnde(s) {
+  const zahl = typeof s === 'object' ? s.z : s;
+  const art = typeof s === 'object' ? (s.k || 'p') : 'p';
+  const p = GT_ENDEN.filter(e => (e.n === 'b' || e.n === String(zahl)) && (!e.f || e.f.indexOf(art) >= 0));
+  const q = p.length ? p : GT_ENDEN.filter(e => e.n === 'b');
+  return q[Math.floor(Math.random()*q.length)].t;
+}
+function gtSubjekt(filter) { const p = filter ? GT_SUBJEKTE.filter(filter) : GT_SUBJEKTE; return p[Math.floor(Math.random()*p.length)]; }
+const GT_FORM = { i: 'am', he: 'is', she: 'is', it: 'is', we: 'are', you: 'are', they: 'are' };
+function gtForm(pron) { return GT_FORM[String(pron).toLowerCase()] || 'is'; }
+function gtVerneint(form) { return form === 'am' ? "am not" : form === 'is' ? "isn't" : "aren't"; }
+
+/* ---------- Aufgabenbau ------------------------------------------------- */
+/* Jede Aufgabe hat dieselbe Form, damit ein einziger Renderer reicht:
+   { thema, muster, anweisung, zeile (HTML), optionen [{t, ok}], laut (Satz
+     zum Vorlesen nach der Loesung), erklaerung } */
+function gtAufgabeA() {   // Pronomen zuordnen
+  const s = gtSubjekt();
+  const alle = ['he','she','it','we','they'];
+  return { thema:'pronomen', muster:'A', anweisung:'Welches Pronomen passt?',
+    zeile:'<span class="gt-phrase">' + s.t + '</span>',
+    optionen: alle.map(o => ({ t:o, ok:o === s.p })),
+    laut: s.p + ' ' + gtForm(s.p) + ' ' + gtEnde(s) + '.',
+    erklaerung: s.z === 2 ? 'Mehrere oder "… and I" - also nicht he/she/it.' : 'Einer oder eines - also he, she oder it.' };
+}
+function gtAufgabeB(mitVerneinung) {   // Satz bilden, + oder -
+  const s = gtSubjekt();
+  const ende = gtEnde(s);
+  const positiv = !mitVerneinung || Math.random() < 0.5;
+  const form = gtForm(s.p);
+  const richtig = positiv ? form : gtVerneint(form);
+  const roh = positiv ? ['is','are','am'] : ["isn't","aren't",'am not'];
+  const optionen = roh.map(o => ({ t:o, ok:o === richtig }));
+  if (!optionen.some(o => o.ok)) optionen.push({ t:richtig, ok:true });
+  return { thema:'pronomen', muster:'B',
+    anweisung: positiv ? 'Bilde den Satz - was gehoert in die Luecke?' : 'Verneint! Was gehoert in die Luecke?',
+    zeile: '<span class="gt-phrase">' + s.t + '</span> <span class="gt-luecke">' + (positiv ? '+' : '–') + '</span> ' + ende + '.',
+    optionen: shuffle(optionen),
+    laut: s.t + ' ' + richtig + ' ' + ende + '.',
+    erklaerung: s.t + ' = ' + s.p + ' → ' + richtig };
+}
+function gtAufgabeC() {   // richtige Form waehlen, zwei Moeglichkeiten
+  const s = gtSubjekt();
+  const ende = gtEnde(s);
+  const richtig = gtForm(s.p);
+  const falsch = richtig === 'are' ? 'is' : 'are';
+  return { thema:'tobe', muster:'C', anweisung:'Welche Form ist richtig?',
+    zeile: s.t + ' <span class="gt-luecke">___</span> ' + ende + '.',
+    optionen: shuffle([{ t:richtig, ok:true }, { t:falsch, ok:false }]),
+    laut: s.t + ' ' + richtig + ' ' + ende + '.',
+    erklaerung: s.t + ' = ' + s.p + ' → ' + richtig };
+}
+function gtAufgabeD() {   // am / is / are ergaenzen
+  const mitIch = Math.random() < 0.25;
+  const s = mitIch ? { t:'I', p:'i', z:1 } : gtSubjekt();
+  const ende = gtEnde(s);
+  const richtig = gtForm(s.p);
+  return { thema:'tobe', muster:'D', anweisung:'Ergaenze am, is oder are.',
+    zeile: s.t + ' <span class="gt-luecke">___</span> ' + ende + '.',
+    optionen: shuffle(['am','is','are'].map(o => ({ t:o, ok:o === richtig }))),
+    laut: s.t + ' ' + richtig + ' ' + ende + '.',
+    erklaerung: (mitIch ? 'Nach I steht immer am.' : s.t + ' = ' + s.p + ' → ' + richtig) };
+}
+function gtAufgabeE() {   // richtig oder falsch
+  const s = gtSubjekt();
+  const ende = gtEnde(s);
+  const richtigeForm = gtForm(s.p);
+  const stimmt = Math.random() < 0.5;
+  const gezeigt = stimmt ? richtigeForm : (richtigeForm === 'are' ? 'is' : 'are');
+  return { thema:'tobe', muster:'E', anweisung:'Stimmt der Satz so?',
+    zeile: '<span class="gt-satz">' + s.t + ' ' + gezeigt + ' ' + ende + '.</span>',
+    optionen: [{ t:'richtig', ok:stimmt }, { t:'falsch', ok:!stimmt }],
+    laut: s.t + ' ' + richtigeForm + ' ' + ende + '.',
+    nachfrage: stimmt ? null : { anweisung:'Und wie heisst es richtig?',
+      optionen: shuffle([{ t:richtigeForm, ok:true }, { t:gezeigt, ok:false }]) },
+    erklaerung: s.t + ' = ' + s.p + ' → ' + richtigeForm };
+}
+
+/* Welche Muster sind in welchem Durchlauf dran? Joules Vorgabe: in den ersten
+   Durchlaeufen ans Thema heranfuehren. Also erst zuordnen und ergaenzen, dann
+   waehlen, dann Saetze bilden, zuletzt beurteilen und verneinen. */
+function gtMuster(thema, runde) {
+  const stufe = Math.min(4, Math.max(1, runde + 1));
+  let m = [];
+  if (thema !== 'tobe') { m.push('A'); if (stufe >= 3) m.push('B'); }
+  if (thema !== 'pronomen') { m.push('D'); if (stufe >= 2) m.push('C'); if (stufe >= 4) m.push('E'); }
+  return { muster: m, stufe: stufe, verneinung: stufe >= 4 };
+}
+function gtBaue(thema, runde) {
+  const plan = gtMuster(thema, runde);
+  const m = plan.muster[Math.floor(Math.random() * plan.muster.length)];
+  if (m === 'A') return gtAufgabeA();
+  if (m === 'B') return gtAufgabeB(plan.verneinung);
+  if (m === 'C') return gtAufgabeC();
+  if (m === 'E') return gtAufgabeE();
+  return gtAufgabeD();
+}
+
+/* ---------- Themenauswahl ----------------------------------------------- */
+function renderGrammatiktrainer() {
+  pauseBuilder();
+  if (gtTimerId) { clearInterval(gtTimerId); gtTimerId = null; }
+  progress.gtRunden = progress.gtRunden || { pronomen: 0, tobe: 0, beides: 0 };
+  const karte = (id, titel, text, runden) => `
+    <button class='gt-wahl' data-thema='${id}'>
+      <span class='gt-wahl-titel'>${titel}</span>
+      <span class='gt-wahl-text'>${text}</span>
+      <span class='gt-wahl-stand'>${runden ? runden + '. Durchlauf – Stufe ' + gtMuster(id, runden).stufe : 'noch nicht geübt'}</span>
+    </button>`;
+  app.innerHTML = `
+    ${renderMissionHeader()}
+    <div class='session-shell'>
+      <div class='card'>
+        <h2 style='margin:0 0 4px;'>🧩 Grammatik üben</h2>
+        <p class='map-sub' style='margin:0 0 14px;'>Nach den Mustern deiner Arbeitsblätter – fünf Minuten, immer neue Sätze.</p>
+        <div class='gt-wahlen'>
+          ${karte('pronomen','Personalpronomen','Wer wird durch he, she, it, we oder they ersetzt?', progress.gtRunden.pronomen)}
+          ${karte('tobe','to be','am, is oder are – und stimmt der Satz so?', progress.gtRunden.tobe)}
+          ${karte('beides','Beides gemischt','Pronomen und to be durcheinander – wie in der Probe.', progress.gtRunden.beides)}
+        </div>
+        <button class='secondary-btn' id='gtZurueck' style='margin-top:14px;'>← Zurück</button>
+      </div>
+    </div>`;
+  app.querySelectorAll('[data-thema]').forEach(b => b.onclick = () => gtLektion(b.dataset.thema));
+  document.getElementById('gtZurueck').onclick = () => renderMap();
+}
+
+/* ---------- Die Lektion -------------------------------------------------- */
+function gtLektion(thema) {
+  pauseBuilder();
+  session = { special: 'grammatiktrainer', history: [], current: null, errorFree: true };
+  const runde = (progress.gtRunden && progress.gtRunden[thema]) || 0;
+  const plan = gtMuster(thema, runde);
+  const ende = Date.now() + GT_DAUER_SEC * 1000;
+  let gesamt = 0, treffer = 0, laeuftAb = false;
+  const proMuster = {};
+  const fehler = [];
+
+  function restSek() { return Math.max(0, Math.round((ende - Date.now()) / 1000)); }
+  function zeitText() { const s = restSek(); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
+  if (gtTimerId) clearInterval(gtTimerId);
+  gtTimerId = setInterval(() => {
+    const el = document.getElementById('gtZeit');
+    if (el) { el.textContent = zeitText(); el.classList.toggle('knapp', restSek() <= 30); }
+    if (restSek() <= 0) { laeuftAb = true; clearInterval(gtTimerId); gtTimerId = null; }
+  }, 1000);
+  function beenden() { if (gtTimerId) { clearInterval(gtTimerId); gtTimerId = null; } session = null; gtBilanz(thema, runde, gesamt, treffer, proMuster, fehler); }
+
+  /* Die Tabelle aus dem Arbeitsblatt. In den ersten beiden Durchlaeufen steht
+     sie dauerhaft da - Joules Vorgabe, ans Thema heranfuehren. Danach nur noch
+     auf Antippen, damit das Abrufen geuebt wird statt des Ablesens. */
+  function tafel(offen) {
+    const zeilen = [['I','am'],['you','are'],['he / she / it','is'],['we','are'],['you','are'],['they','are']];
+    return `<details class='gt-tafel' ${offen ? 'open' : ''}>
+      <summary>Spickzettel</summary>
+      <table class='gt-tabelle'>${zeilen.map(z => `<tr><td>${z[0]}</td><td><strong>${z[1]}</strong></td></tr>`).join('')}</table>
+    </details>`;
+  }
+
+  let aufgabe = null, phase = 'haupt';
+  function zeichne() {
+    const teil = phase === 'nach' ? aufgabe.nachfrage : aufgabe;
+    app.innerHTML = `
+      ${renderMissionHeader()}
+      <div class='session-shell'>
+        <div class='vt-leiste'>
+          <span class='vt-uhr' id='gtZeit'>${zeitText()}</span>
+          <span class='vt-stand'>${treffer} von ${gesamt} richtig</span>
+          <button class='secondary-btn vt-stop' id='gtStop'>Schluss</button>
+        </div>
+        <div class='card vt-karte'>
+          <div class='q-topic'>${aufgabe.muster === 'A' ? 'Pronomen' : 'to be'} · Stufe ${plan.stufe}</div>
+          <div class='vt-anweisung'>${teil.anweisung}</div>
+          <div class='gt-zeile'>${aufgabe.zeile}</div>
+          <div class='options single-col' id='gtOpts'>
+            ${teil.optionen.map((o,i) => `<button class='opt-btn' data-i='${i}'>${o.t}</button>`).join('')}
+          </div>
+          <div class='vt-rueckmeldung' id='gtFeedback'></div>
+          ${tafel(plan.stufe <= 2)}
+        </div>
+      </div>`;
+    document.getElementById('gtStop').onclick = () => { laeuftAb = true; beenden(); };
+    let schonFalsch = false;
+    app.querySelectorAll('#gtOpts .opt-btn').forEach(b => b.onclick = () => {
+      if (b.disabled) return;
+      const o = teil.optionen[+b.dataset.i];
+      if (o.ok) {
+        b.classList.add('correct');
+        app.querySelectorAll('#gtOpts .opt-btn').forEach(x => x.disabled = true);
+        loesung(!schonFalsch);
+      } else {
+        schonFalsch = true; b.classList.add('retry'); b.disabled = true; feedback(false);
+        const f = document.getElementById('gtFeedback');
+        if (f) f.innerHTML = `<span class='vt-zusatz'>${aufgabe.erklaerung}</span>`;
+      }
+    });
+  }
+
+  function loesung(ersterVersuchOk) {
+    if (phase === 'haupt' && aufgabe.nachfrage) {
+      /* Muster E: war der Satz falsch, kommt die Korrektur hinterher. Gewertet
+         wird erst nach dem zweiten Schritt - erkannt UND verbessert. */
+      aufgabe._ersterOk = ersterVersuchOk;
+      phase = 'nach';
+      setTimeout(zeichne, 650);
+      return;
+    }
+    const ok = aufgabe.nachfrage ? (!!aufgabe._ersterOk && ersterVersuchOk) : ersterVersuchOk;
+    gesamt++; if (ok) treffer++;
+    const m = aufgabe.muster;
+    proMuster[m] = proMuster[m] || { n:0, ok:0 };
+    proMuster[m].n++; if (ok) proMuster[m].ok++;
+    if (!ok && fehler.length < 12) fehler.push({ satz: aufgabe.laut, erklaerung: aufgabe.erklaerung });
+    /* Zaehlt wie jede Sondermission auf die Erfolgsquote ein: ueber die
+       Grammatikkarte des Themas, damit es in der Statistik sichtbar wird. */
+    try {
+      const karte = VOCAB.find(v => v.cat === (m === 'A' || m === 'B' ? 'grammar-pronouns' : 'grammar-be'))
+        || VOCAB.find(v => String(v.cat).startsWith('grammar'));
+      if (karte) { session.current = { phase:'practice', type:'fill-blank', target:karte.id }; reviewResult(karte.id, ok); session.current = null; }
+    } catch (e) {}
+    const f = document.getElementById('gtFeedback');
+    if (f) f.innerHTML = ok
+      ? `<span class='vt-gut'>✓ ${aufgabe.laut}</span>`
+      : `<span class='vt-daneben'>Richtig heisst es: <strong>${aufgabe.laut}</strong></span><span class='vt-zusatz'>${aufgabe.erklaerung}</span>`;
+    if (ok) setCyrilMood('highfive', { then:'idle' }); else setCyrilMood('encourage_easy', { then:'idle' });
+    speak(aufgabe.laut);
+    setTimeout(() => {
+      if (laeuftAb) { beenden(); return; }
+      aufgabe = gtBaue(thema, runde); phase = 'haupt'; zeichne();
+    }, ok ? 1200 : 2400);
+  }
+
+  aufgabe = gtBaue(thema, runde); phase = 'haupt'; zeichne();
+}
+
+/* ---------- Bilanz ------------------------------------------------------- */
+function gtBilanz(thema, runde, gesamt, treffer, proMuster, fehler) {
+  const quote = gesamt ? Math.round(treffer / gesamt * 100) : 0;
+  progress.gtRunden = progress.gtRunden || { pronomen:0, tobe:0, beides:0 };
+  if (gesamt >= 5) progress.gtRunden[thema] = (progress.gtRunden[thema] || 0) + 1;
+  const neueRunde = progress.gtRunden[thema] || 0;
+  const naechsteStufe = gtMuster(thema, neueRunde).stufe;
+  const spruch = gesamt === 0 ? 'Noch nichts gerechnet – beim nächsten Mal einfach loslegen.'
+    : quote >= 90 ? 'Das sitzt. Genau so darf die Probe aussehen.'
+    : quote >= 75 ? 'Sehr ordentlich. Die Regel hast du drin, der Rest ist Routine.'
+    : quote >= 50 ? 'Guter Stand. Morgen dieselbe Runde – dann rutscht es in den Automatismus.'
+    : 'Noch wackelig, und das ist bei dem Thema normal. Der Spickzettel bleibt dir erhalten.';
+  const musterName = { A:'Pronomen zuordnen', B:'Sätze bilden', C:'Form wählen', D:'am/is/are', E:'richtig oder falsch' };
+  try {
+    progress.session_log = progress.session_log || [];
+    progress.session_log.push({ d:dayStamp(0), t:Date.now(), ms:GT_DAUER_SEC*1000, n:gesamt, ok:treffer,
+      err:gesamt-treffer, steps:gesamt, neu:0, isl:progress.current_island_id, art:'grammatiktrainer', done:true });
+    while (progress.session_log.length > SESSION_LOG_MAX) progress.session_log.shift();
+  } catch (e) {}
+  const m = specialById('grammatiktrainer');
+  let lohn = null;
+  if (m && gesamt >= 8) { try { lohn = specialBelohnungGeben(m); } catch (e) {} }
+  saveProgress();
+  app.innerHTML = `
+    ${renderMissionHeader()}
+    <div class='session-shell'>
+      <div class='card vt-bilanz-karte'>
+        <h2 style='margin:0 0 2px;'>Fünf Minuten Grammatik</h2>
+        <div class='vt-quote'>${quote}%</div>
+        <div class='map-sub' style='margin:0 0 12px;'>${treffer} von ${gesamt} Aufgaben auf Anhieb richtig</div>
+        <p class='vt-spruch'>${spruch}</p>
+        ${lohn && !lohn.schonHeute && (lohn.gems || lohn.sec) ? `<div class='vt-lohn'>+${lohn.gems} 💎 und +${Math.round(lohn.sec/60)} Min Spielzeit</div>` : ''}
+        ${Object.keys(proMuster).length ? `<div class='vt-block-titel'>Nach Aufgabenart</div><div class='gt-balken'>${Object.keys(proMuster).map(k => { const p = proMuster[k]; const q = Math.round(p.ok/p.n*100); return `<div class='gt-balken-zeile'><span>${musterName[k]||k}</span><span class='gt-balken-spur'><span class='gt-balken-fuell' style='width:${q}%'></span></span><span class='gt-balken-zahl'>${q}%</span></div>`; }).join('')}</div>` : ''}
+        ${fehler.length ? `<div class='vt-block-titel'>Nochmal anschauen</div><div class='gt-fehlerliste'>${fehler.map(f => `<div class='gt-fehler'><span class='gt-fehler-satz'>${f.satz}</span><span class='vt-zusatz'>${f.erklaerung}</span></div>`).join('')}</div>` : ''}
+        <div class='map-sub' style='margin-top:12px;font-size:.85rem;'>Nächster Durchlauf: Stufe ${naechsteStufe} von 4${naechsteStufe >= 4 ? ' – alle Aufgabenarten, auch verneint.' : ''}</div>
+        <button class='primary-btn' id='gtNochmal' style='margin-top:14px;'>Nochmal 5 Minuten</button>
+        <button class='secondary-btn' id='gtAndere' style='margin-top:8px;'>Anderes Thema</button>
+        <button class='secondary-btn' id='gtFertig' style='margin-top:8px;'>Fertig</button>
+      </div>
+    </div>`;
+  document.getElementById('gtNochmal').onclick = () => gtLektion(thema);
+  document.getElementById('gtAndere').onclick = () => renderGrammatiktrainer();
+  document.getElementById('gtFertig').onclick = () => renderMap();
 }
 
 /* ---------- Auswahl: Buch, Unit, Thema ---------------------------------- */
@@ -16226,7 +16579,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v83';
+const APP_VERSION = 'v84';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
