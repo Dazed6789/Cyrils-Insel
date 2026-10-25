@@ -4774,7 +4774,13 @@ function gtLektion(thema) {
 function gtBilanz(thema, runde, gesamt, treffer, proMuster, fehler) {
   const quote = gesamt ? Math.round(treffer / gesamt * 100) : 0;
   progress.gtRunden = progress.gtRunden || { pronomen:0, tobe:0, beides:0 };
-  if (gesamt >= 5) progress.gtRunden[thema] = (progress.gtRunden[thema] || 0) + 1;
+  /* v85: Der Aufstieg haengt jetzt an der Leistung, nicht nur an der Zahl der
+     Durchlaeufe. Vorher ruecke eine Lektion mit 14 % genauso vor wie eine mit
+     95 % - das Kind haette die naechste Stufe mit unfertiger Grundlage
+     bekommen. Abgestiegen wird nie. */
+  const GT_AUFSTIEG_QUOTE = 65;
+  const aufgestiegen = gesamt >= 5 && quote >= GT_AUFSTIEG_QUOTE;
+  if (aufgestiegen) progress.gtRunden[thema] = (progress.gtRunden[thema] || 0) + 1;
   const neueRunde = progress.gtRunden[thema] || 0;
   const naechsteStufe = gtMuster(thema, neueRunde).stufe;
   const spruch = gesamt === 0 ? 'Noch nichts gerechnet – beim nächsten Mal einfach loslegen.'
@@ -4804,7 +4810,7 @@ function gtBilanz(thema, runde, gesamt, treffer, proMuster, fehler) {
         ${lohn && !lohn.schonHeute && (lohn.gems || lohn.sec) ? `<div class='vt-lohn'>+${lohn.gems} 💎 und +${Math.round(lohn.sec/60)} Min Spielzeit</div>` : ''}
         ${Object.keys(proMuster).length ? `<div class='vt-block-titel'>Nach Aufgabenart</div><div class='gt-balken'>${Object.keys(proMuster).map(k => { const p = proMuster[k]; const q = Math.round(p.ok/p.n*100); return `<div class='gt-balken-zeile'><span>${musterName[k]||k}</span><span class='gt-balken-spur'><span class='gt-balken-fuell' style='width:${q}%'></span></span><span class='gt-balken-zahl'>${q}%</span></div>`; }).join('')}</div>` : ''}
         ${fehler.length ? `<div class='vt-block-titel'>Nochmal anschauen</div><div class='gt-fehlerliste'>${fehler.map(f => `<div class='gt-fehler'><span class='gt-fehler-satz'>${f.satz}</span><span class='vt-zusatz'>${f.erklaerung}</span></div>`).join('')}</div>` : ''}
-        <div class='map-sub' style='margin-top:12px;font-size:.85rem;'>Nächster Durchlauf: Stufe ${naechsteStufe} von 4${naechsteStufe >= 4 ? ' – alle Aufgabenarten, auch verneint.' : ''}</div>
+        <div class='map-sub' style='margin-top:12px;font-size:.85rem;'>Nächster Durchlauf: Stufe ${naechsteStufe} von 4${naechsteStufe >= 4 ? ' – alle Aufgabenarten, auch verneint.' : ''}${gesamt >= 5 && !aufgestiegen ? ' – wir bleiben auf dieser Stufe, bis sie sicher sitzt.' : ''}</div>
         <button class='primary-btn' id='gtNochmal' style='margin-top:14px;'>Nochmal 5 Minuten</button>
         <button class='secondary-btn' id='gtAndere' style='margin-top:8px;'>Anderes Thema</button>
         <button class='secondary-btn' id='gtFertig' style='margin-top:8px;'>Fertig</button>
@@ -16579,7 +16585,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v84';
+const APP_VERSION = 'v85';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
