@@ -14180,11 +14180,21 @@ function newWordsPerSessionCap(islandId, order) {
      Wiederholung laeuft weiter, die Insel bewegt sich also langsamer statt
      gar nicht. Sicherung: nur drosseln, wenn ueberhaupt genug
      Wiederholungsmaterial da ist - sonst entstuende eine leere Sitzung. */
+  /* v87-Korrektur: die Sicherung hing am falschen Mass. Gemessen wurde, wie
+     viele Woerter der Inselreihenfolge schon bekannt sind - die
+     Wiederholungen der Sitzung kommen aber aus reviewPool()/isDue ueber den
+     GESAMTEN eingefuehrten Wortschatz (siehe buildMandatoryQueue). Dadurch
+     griff die Drosselung auf einer frischen Insel nie. Jetzt wird gezaehlt,
+     was tatsaechlich faellig ist; bei duenner Lage bleibt ein neues Wort
+     erlaubt, damit nie eine leere Sitzung entsteht. */
   try {
     const pmA = pmAktiv();
     if (pmA) {
       const tagPlan = pmPlanTag(pmA, pmA.nr);
-      if (!tagPlan.neueWoerter && order.filter(w => !isNew(w)).length >= 6) return 0;
+      if (!tagPlan.neueWoerter) {
+        const faellig = reviewPool().filter(isDue).length;
+        return faellig >= 5 ? 0 : 1;
+      }
     }
   } catch (e) {}
   const base = ISLAND_NEW_WORDS_BASE[islandId] !== undefined ? ISLAND_NEW_WORDS_BASE[islandId] : 3;
@@ -16810,7 +16820,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v86';
+const APP_VERSION = 'v87';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
