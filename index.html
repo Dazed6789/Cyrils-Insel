@@ -5726,7 +5726,7 @@ function pmBanner() {
   const probeText = bis === null ? '' : bis > 1 ? ` &middot; Probe in ${bis} Tagen` : bis === 1 ? ' &middot; Probe ist morgen' : bis === 0 ? ' &middot; Probe ist heute' : '';
   if (tag.pause) {
     return `<div class='pm-banner'><div class='pm-kopf'>Probenvorbereitung &middot; Tag ${p.nr} von ${p.tage}${probeText}</div>
-      <div class='pm-text'><strong>Heute Pause vom Thema.</strong> Nur Insel, dafuer mit neuen Woertern. Das Vergessen und Wiederholen ist der Teil, der es festmacht.</div></div>`;
+      <div class='pm-text'><strong>Heute Pause vom Thema.</strong> Üb, was du magst – heute ohne Drosselung. Das Vergessen und Wiederholen ist der Teil, der es festmacht.</div></div>`;
   }
   const th = pmThema(tag.thema);
   const name = th ? th.kurz : 'Grammatik';
@@ -5802,7 +5802,7 @@ function renderPruefmodus() {
       for (let nr = 1; nr <= dauer; nr++) {
         const tg = pmPlanTag(probe, nr);
         const name = tg.pause ? 'Pause vom Thema' : (pmThema(tg.thema) || { kurz: tg.thema }).kurz + (tg.doppelt ? ' (zweimal)' : tg.locker ? ' (locker)' : '');
-        rows += `<tr><td>Tag ${nr}</td><td>${name}</td><td>${tg.neueWoerter ? 'neue Woerter' : 'nur Wiederholung'}</td></tr>`;
+        rows += `<tr><td>Tag ${nr}</td><td>${name}</td><td>${tg.neueWoerter ? 'normales Tempo' : 'nur Wiederholung'}</td></tr>`;
       }
       v.innerHTML = `<table class='pm-tabelle'>${rows}</table>`;
     }
@@ -5817,8 +5817,12 @@ function renderPruefmodus() {
     if (themen.length < 2 || themen.length > 3) return;
     progress.pruefmodus = { start: pmHeute(), tage: dauer, themen: themen.slice(), datum: (document.getElementById('pmDatum')||{}).value || '' };
     progress.pmFertig = null;
+    /* Enthaelt die Phase nur Mathethemen, soll die App auch im Fach Mathe
+       landen - sonst sucht man das Banner auf der falschen Seite. */
+    if (themen.length && themen.every(id => id.indexOf('ma:') === 0)) progress.fach = 'ma';
+    else if (themen.every(id => id.indexOf('ma:') !== 0)) progress.fach = 'en';
     try { saveProgress(); } catch (e) {}
-    renderMap();
+    renderLernen();
   };
   const aus = document.getElementById('pmAusBtn');
   if (aus) aus.onclick = () => { progress.pruefmodus = null; progress.pmFertig = null; try { saveProgress(); } catch (e) {} renderPruefmodus(); };
@@ -6394,7 +6398,12 @@ const SA_STOER = {
   ernte:     () => { const d = 2 + maRnd(5); return { zahl:d, satz:'Die Ernte dauerte ' + d + ' Tage.' }; },
   album:     () => { const s = 20 + maRnd(40); return { zahl:s, satz:'Das Album hat ' + s + ' Seiten.' }; },
   feier:     () => { const h = 14 + maRnd(5); return { zahl:h, satz:'Die Feier beginnt um ' + h + ' Uhr.' }; },
-  handwerker:() => { const d = 2 + maRnd(5); return { zahl:d, satz:'Der Handwerker braucht ' + d + ' Tage.' }; }
+  handwerker:() => { const d = 2 + maRnd(5); return { zahl:d, satz:'Der Handwerker braucht ' + d + ' Tage.' }; },
+  busfahrt:  () => { const m = 10 + maRnd(40); return { zahl:m, satz:'Die Busfahrt dorthin dauert ' + m + ' Minuten.' }; },
+  wetter:    () => { const g = 8 + maRnd(20); return { zahl:g, satz:'Draußen sind es ' + g + ' Grad.' }; },
+  eintritt:  () => { const c = 150 + maRnd(400); return { zahl:c, satz:'Der Eintritt kostet ' + c + ' ct.' }; },
+  regale:    () => { const n = 2 + maRnd(8); return { zahl:n, satz:'Es gibt ' + n + ' Regale im Raum.' }; },
+  hausnummer:() => { const n = 2 + maRnd(60); return { zahl:n, satz:'Das Geschäft hat die Hausnummer ' + n + '.' }; }
 };
 
 /* Jede Struktur liefert Kulissen (Kontexte) und baut daraus einen Fall.
@@ -6408,7 +6417,9 @@ const SA_STRUKTUREN = [
       { ort:'Das Fußballfeld', tun:'laufen', stoer: SA_STOER.kinder },
       { ort:'Der Schulhof', tun:'laufen', stoer: SA_STOER.schueler },
       { ort:'Der Garten', tun:'rennen', stoer: SA_STOER.baeume },
-      { ort:'Das Schwimmbecken', tun:'schwimmen', stoer: SA_STOER.wasser }
+      { ort:'Das Schwimmbecken', tun:'schwimmen', stoer: SA_STOER.wasser },
+      { ort:'Der Sportplatz', tun:'laufen', stoer: SA_STOER.wetter },
+      { ort:'Das Spielfeld', tun:'rennen', stoer: SA_STOER.busfahrt }
     ],
     bau: function(stufe, vermeide) {
       const k = saWaehleKulisse(this.kulissen, vermeide);
@@ -6446,7 +6457,9 @@ const SA_STRUKTUREN = [
       { ding:'Hefte', stueck:'Heft', wo:'im Schreibwarenladen', stoer: SA_STOER.uhrzeit },
       { ding:'Kinokarten', stueck:'Karte', wo:'an der Kasse', stoer: SA_STOER.filmdauer },
       { ding:'Brötchen', stueck:'Brötchen', wo:'beim Bäcker', stoer: SA_STOER.alter },
-      { ding:'Eintrittskarten', stueck:'Karte', wo:'im Schwimmbad', stoer: SA_STOER.beckenlaenge }
+      { ding:'Eintrittskarten', stueck:'Karte', wo:'im Schwimmbad', stoer: SA_STOER.beckenlaenge },
+      { ding:'Stifte', stueck:'Stift', wo:'im Kaufhaus', stoer: SA_STOER.hausnummer },
+      { ding:'Postkarten', stueck:'Karte', wo:'am Kiosk', stoer: SA_STOER.wetter }
     ],
     bau: function(stufe, vermeide) {
       const k = saWaehleKulisse(this.kulissen, vermeide);
@@ -6481,7 +6494,9 @@ const SA_STRUKTUREN = [
       { ding:'Skischuhe', ort:'im Lager', weg:'abgeholt' },
       { ding:'Bücher', ort:'in der Bücherei', weg:'ausgeliehen' },
       { ding:'Stühle', ort:'in der Aula', weg:'weggeräumt' },
-      { ding:'Flaschen', ort:'im Getränkemarkt', weg:'verkauft' }
+      { ding:'Flaschen', ort:'im Getränkemarkt', weg:'verkauft' },
+      { ding:'Brote', ort:'im Regal', weg:'verkauft' },
+      { ding:'Hefte', ort:'im Schrank', weg:'ausgeteilt' }
     ],
     bau: function(stufe, vermeide) {
       const k = saWaehleKulisse(this.kulissen, vermeide);
@@ -6516,7 +6531,9 @@ const SA_STRUKTUREN = [
       { ding:'Bonbons', wer:'Kinder', stoer: SA_STOER.tuete },
       { ding:'Äpfel', wer:'Körbe', stoer: SA_STOER.ernte },
       { ding:'Sticker', wer:'Freunde', stoer: SA_STOER.album },
-      { ding:'Luftballons', wer:'Tische', stoer: SA_STOER.feier }
+      { ding:'Luftballons', wer:'Tische', stoer: SA_STOER.feier },
+      { ding:'Murmeln', wer:'Gläser', stoer: SA_STOER.regale },
+      { ding:'Kekse', wer:'Teller', stoer: SA_STOER.eintritt }
     ],
     bau: function(stufe, vermeide) {
       const k = saWaehleKulisse(this.kulissen, vermeide);
@@ -6550,7 +6567,9 @@ const SA_STRUKTUREN = [
     kulissen: [
       { raum:'Das Zimmer', belag:'Fliesen', pro:'Fliesen pro m²' },
       { raum:'Die Terrasse', belag:'Platten', pro:'Platten pro m²' },
-      { raum:'Der Flur', belag:'Fliesen', pro:'Fliesen pro m²' }
+      { raum:'Der Flur', belag:'Fliesen', pro:'Fliesen pro m²' },
+      { raum:'Die Küche', belag:'Fliesen', pro:'Fliesen pro m²' },
+      { raum:'Der Hof', belag:'Pflastersteine', pro:'Steine pro m²' }
     ],
     bau: function(stufe, vermeide) {
       const k = saWaehleKulisse(this.kulissen, vermeide);
@@ -6584,7 +6603,9 @@ const SA_STRUKTUREN = [
     kulissen: [
       { ding:'Skischuhe', firma:'Die Firma Bergmaier', ort:'im Lager' },
       { ding:'Trikots', firma:'Der Sportverein', ort:'im Schrank' },
-      { ding:'Brote', firma:'Die Bäckerei', ort:'im Regal' }
+      { ding:'Brote', firma:'Die Bäckerei', ort:'im Regal' },
+      { ding:'Bälle', firma:'Der Sportladen', ort:'im Lager' },
+      { ding:'Hefte', firma:'Die Schule', ort:'im Schrank' }
     ],
     bau: function(stufe, vermeide) {
       const k = saWaehleKulisse(this.kulissen, vermeide);
@@ -6627,7 +6648,7 @@ function saStruktur(id) { return SA_STRUKTUREN.filter(s => s.id === id)[0]; }
    Unterscheidung zum Raten. Bis zu zwoelf Versuche, danach wird die
    Stoerangabe mit einem erkennbar anderen Wert erzwungen. */
 function saStoer(quelle, verboten) {
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 40; i++) {
     const s = quelle();
     if (verboten.indexOf(s.zahl) < 0) return s;
   }
@@ -8117,11 +8138,14 @@ function renderWerkstatt() {
     ${renderNav('learn')}
     ${renderTopbar()}
     ${fachLeiste()}
+    ${pmBanner()}
     <h2 style='margin:4px 0 2px;'>Werkstatt</h2>
     <p class='map-sub' style='margin:0 0 12px;'>Edelsteine, Bauzeit und Spielzeit sind dieselben wie bei Englisch - egal, wo du sie holst.</p>
     <div class='werkbank-raster'>${karten}</div>
   `;
   app.querySelectorAll('[data-ma]').forEach(b => b.onclick = () => renderMaThemen(b.dataset.ma));
+  const pmBtnW = document.getElementById('pmBlockBtn');
+  if (pmBtnW) pmBtnW.onclick = () => pmBlockStarten(pmBtnW.dataset.thema);
   attachNav();
 }
 
@@ -19382,7 +19406,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v91';
+const APP_VERSION = 'v91b';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
