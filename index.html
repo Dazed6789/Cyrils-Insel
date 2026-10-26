@@ -220,6 +220,11 @@ button{font-family:var(--font-main); letter-spacing:var(--letter-spacing-base); 
 .ma-blatt-knopf{padding:7px 12px;font-size:.88rem;border:1px solid #D8C3A5;border-radius:9px;background:#FFF;cursor:pointer;}
 .ma-blatt-knopf.an{background:#C8A063;border-color:#C8A063;color:#2A1E07;font-weight:700;}
 .ma-blatt-flaeche{width:100%;height:220px;border:2px dashed #D8C3A5;border-radius:12px;background:#FFFDF8;touch-action:none;display:block;}
+.ma-klein{display:block;font-size:.85rem;font-weight:600;color:#8A8A8A;margin-top:4px;}
+.da-tabelle{margin:0 auto;border-collapse:collapse;font-size:1rem;}
+.da-tabelle td{padding:4px 10px;border-bottom:1px solid #EEE;text-align:left;}
+.da-striche{font-family:ui-monospace,Menlo,monospace;letter-spacing:2px;}
+.da-buendel{border-bottom:2px solid #1C3D4A;padding-bottom:1px;margin-right:3px;}
 .pm-banner{background:#FFF8E6;border:2px solid #E8C96A;border-radius:14px;padding:12px 14px;margin-bottom:10px;}
 .pm-banner.pm-fertig{background:#EAF7EE;border-color:#8CC9A0;}
 .pm-kopf{font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8A6A12;margin-bottom:4px;}
@@ -5785,19 +5790,19 @@ const MA_BEREICHE = [
   { id: 'sachaufgaben', lb: 'Strategie · S. 71', titel: 'Sachaufgaben lösen',
     text: 'Text verstehen, dann rechnen – mit Vorlesen', fertig: false },
   { id: 'rechnen', lb: 'Kapitel 3 · S. 51', titel: 'Rechnen mit natürlichen Zahlen',
-    text: 'Grundrechenarten, Rechenvorteile, schriftlich rechnen', fertig: false },
+    text: 'Grundrechenarten, Rechenvorteile, schriftlich rechnen', fertig: true },
   { id: 'zahlen', lb: 'Kapitel 2 · S. 29', titel: 'Die natürlichen Zahlen',
-    text: 'Ordnen, vergleichen, Stellenwert, runden', fertig: false },
+    text: 'Ordnen, vergleichen, Stellenwert, runden', fertig: true },
   { id: 'geometrie', lb: 'Kapitel 5 · S. 101', titel: 'Grundbegriffe der Geometrie',
-    text: 'Gerade, parallel, senkrecht, Umfang, Koordinaten, Winkel', fertig: false },
+    text: 'Gerade, parallel, senkrecht, Umfang, Koordinaten, Winkel', fertig: true },
   { id: 'flaechen', lb: 'Kapitel 7 · S. 151', titel: 'Flächeninhalte – Rechtecke',
-    text: 'Vergleichen und berechnen, cm² und m²', fertig: false },
+    text: 'Vergleichen und berechnen, cm² und m²', fertig: true },
   { id: 'ganze', lb: 'Kapitel 6 · S. 131', titel: 'Die ganzen Zahlen',
-    text: 'Minusgrade, Zustandsänderungen, Zahlengerade', fertig: false },
+    text: 'Minusgrade, Zustandsänderungen, Zahlengerade', fertig: true },
   { id: 'daten', lb: 'Kapitel 1 · S. 7', titel: 'Daten',
-    text: 'Umfragen, Tabellen, Diagramme zeichnen und auswerten', fertig: false },
+    text: 'Umfragen, Tabellen, Diagramme zeichnen und auswerten', fertig: true },
   { id: 'gleichungen', lb: 'Kapitel 8 · S. 171', titel: 'Gleichungen und Formeln',
-    text: 'Variablen, Umkehraufgaben, systematisches Probieren', fertig: false }
+    text: 'Variablen, Umkehraufgaben, systematisches Probieren', fertig: true }
 ];
 /* Die Groessenbereiche mit ihren Umrechnungsfaktoren, bezogen auf die
    jeweils kleinste Einheit. Monat und Jahr fehlen bewusst: sie sind nicht
@@ -5873,12 +5878,22 @@ function maSitzt(id) { const s = maState(id); return s.correct >= 3 && maQuote(i
 /* Fortschritt einer Werkbank: Anteil der sicher sitzenden Fertigkeiten. */
 function maBereichFortschritt(bereichId) {
   const ids = maFertigkeiten(bereichId);
-  if (!ids.length) return { sitzt: 0, gesamt: 0, pct: 0 };
+  /* Bei den Kapiteln ohne feste Fertigkeitsliste zaehlt der erwartete
+     Umfang, solange noch nicht alle Arten vorgekommen sind - sonst stuende
+     nach der ersten Aufgabe '1 von 1 sitzt sicher'. */
+  const erwartet = MA_ERWARTET[bereichId] || 0;
+  const gesamt = Math.max(ids.length, erwartet);
+  if (!gesamt) return { sitzt: 0, gesamt: 0, pct: 0 };
   const sitzt = ids.filter(maSitzt).length;
-  return { sitzt: sitzt, gesamt: ids.length, pct: Math.round(sitzt / ids.length * 100) };
+  return { sitzt: sitzt, gesamt: gesamt, pct: Math.round(sitzt / gesamt * 100) };
 }
 function maFertigkeiten(bereichId) {
-  if (bereichId !== 'groessen') return [];
+  if (bereichId !== 'groessen') {
+    const prae = MA_ID_PRAEFIX[bereichId];
+    if (!prae) return [];
+    const gesehen = Object.keys(progress.math_state || {}).filter(k => k.indexOf(prae) === 0);
+    return gesehen;
+  }
   const ids = [];
   MA_BEREICH_KEYS.forEach(b => {
     const g = MA_GROESSEN[b];
@@ -5909,12 +5924,14 @@ function maZahl(n) {
 function maZahlPasst(eingabe, soll) {
   if (eingabe === null || eingabe === undefined) return false;
   let s = String(eingabe).trim().replace(/\s/g, '').replace(/\u00a0/g, '');
+  s = s.replace(/\u2212/g, '-');   /* v89: Taste liefert ein typografisches Minus */
   if (s === '') return false;
   if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
   else if ((s.match(/\./g) || []).length > 1) s = s.replace(/\./g, '');
   const z = Number(s);
   if (!isFinite(z)) return false;
   return Math.abs(z - soll) < 1e-9;
+
 }
 /* Einheiten wie Tag und Woche brauchen eine Mehrzahl - '2 Tag' liest sich
    falsch, und bei LRS ist jede sprachliche Unebenheit eine unnoetige Huerde.
@@ -6273,15 +6290,33 @@ function maGrAufgabe(runde) {
    Bewusst dasselbe Format wie Vokabeltest und Grammatik-Trainer. Er kennt
    die Uhr oben links, den Stand daneben und den Schluss-Knopf schon - eine
    neue Bedienlogik pro Fach waere unnoetiger Ballast. */
+/* ---------- Registry: jede Werkbank liefert Plan, Aufgaben und Hilfe ----
+   Damit laeuft EINE Lektionsmechanik fuer alle Kapitel. Eine zweite
+   Lektionslogik pro Kapitel waere die sichere Quelle fuer Fehler, die nur
+   in einem davon auftreten. */
+const MA_TRAINER = {
+  groessen:    { titel:'Größen', plan: maGrPlan,  aufgabe: maGrAufgabe,  hilfe: (a, offen) => maLeiter(a.bereich, offen) },
+  zahlen:      { titel:'Natürliche Zahlen', plan: maZaPlan, aufgabe: maZaAufgabe, hilfe: (a, offen) => maZaHilfe(offen) },
+  rechnen:     { titel:'Rechnen', plan: maRePlan, aufgabe: maReAufgabe, hilfe: (a, offen) => maReHilfe(offen) },
+  ganze:       { titel:'Ganze Zahlen', plan: maGzPlan, aufgabe: maGzAufgabe, hilfe: (a, offen) => maGzHilfe(offen) },
+  flaechen:    { titel:'Flächeninhalte', plan: maFlPlan, aufgabe: maFlAufgabe, hilfe: (a, offen) => maFlHilfe(offen) },
+  geometrie:   { titel:'Geometrie', plan: maGeoPlan, aufgabe: maGeoAufgabe, hilfe: (a, offen) => maGeoHilfe(offen) },
+  gleichungen: { titel:'Gleichungen', plan: maGlPlan, aufgabe: maGlAufgabe, hilfe: (a, offen) => maGlHilfe(offen) },
+  daten:       { titel:'Daten', plan: maDaPlan, aufgabe: maDaAufgabe, hilfe: (a, offen) => maDaHilfe(offen) }
+};
+const MA_ID_PRAEFIX = { zahlen:'ma_za_', rechnen:'ma_re_', ganze:'ma_gz_', flaechen:'ma_fl_', geometrie:'ma_geo_', gleichungen:'ma_gl_', daten:'ma_da_' };
+const MA_ERWARTET = { zahlen:8, rechnen:8, ganze:5, flaechen:4, geometrie:5, gleichungen:4, daten:5 };
+
 function maLektion(bereichId) {
-  if (bereichId !== 'groessen') { renderWerkstatt(); return; }
-  maGrLektion();
+  if (!MA_TRAINER[bereichId]) { renderWerkstatt(); return; }
+  maLektionLauf(bereichId);
 }
-function maGrLektion() {
+function maLektionLauf(bereichId) {
+  const trainer = MA_TRAINER[bereichId];
   pauseBuilder();
   session = { special: 'mathe', history: [], current: null, errorFree: true };
-  const runde = (progress.maRunden && progress.maRunden.groessen) || 0;
-  const plan = maGrPlan(runde);
+  const runde = (progress.maRunden && progress.maRunden[bereichId]) || 0;
+  const plan = trainer.plan(runde);
   const ende = Date.now() + MA_DAUER_SEC * 1000;
   let gesamt = 0, treffer = 0;
   const proTyp = {};
@@ -6299,11 +6334,11 @@ function maGrLektion() {
   function beenden() {
     if (maTimerId) { clearInterval(maTimerId); maTimerId = null; }
     session = null;
-    maGrBilanz(runde, gesamt, treffer, proTyp, fehler);
+    maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler);
   }
 
   function naechste() {
-    aufgabe = maGrAufgabe(runde);
+    aufgabe = trainer.aufgabe(runde);
     eingabe = ''; schonFalsch = false; ordnenIdx = 0;
     zeichne();
   }
@@ -6334,10 +6369,11 @@ function maGrLektion() {
 
   function zeichne() {
     const mitDoppelpunkt = aufgabe.modus === 'uhrzeit';
-    const mitKomma = aufgabe.modus === 'zahl' && MA_GROESSEN[aufgabe.bereich] && MA_GROESSEN[aufgabe.bereich].komma;
+    const mitKomma = aufgabe.komma !== undefined ? !!aufgabe.komma : (aufgabe.modus === 'zahl' && MA_GROESSEN[aufgabe.bereich] && MA_GROESSEN[aufgabe.bereich].komma);
+    const mitMinus = !!aufgabe.minus;
     let eingabeBlock = '';
     if (aufgabe.modus === 'zahl' || aufgabe.modus === 'uhrzeit') {
-      eingabeBlock = `<div class='ma-anzeige' id='maAnzeige'><span id='maEingabe'></span><span class='ma-einheit'>${aufgabe.einheit || ''}</span></div>` + maZahlenfeld(mitKomma, mitDoppelpunkt);
+      eingabeBlock = `<div class='ma-anzeige' id='maAnzeige'><span id='maEingabe'></span><span class='ma-einheit'>${aufgabe.einheit || ''}</span></div>` + maZahlenfeld(mitKomma, mitDoppelpunkt, mitMinus);
     } else if (aufgabe.modus === 'wahl') {
       eingabeBlock = `<div class='options single-col' id='maOpts'>${aufgabe.optionen.map((o,i) => `<button class='opt-btn' data-i='${i}'>${o.t}</button>`).join('')}</div>`;
     } else if (aufgabe.modus === 'ordnen') {
@@ -6352,12 +6388,12 @@ function maGrLektion() {
           <button class='secondary-btn vt-stop' id='maStop'>Schluss</button>
         </div>
         <div class='card vt-karte'>
-          <div class='q-topic'>Größen · Stufe ${plan.stufe}</div>
+          <div class='q-topic'>${trainer.titel} · Stufe ${plan.stufe}</div>
           <div class='vt-anweisung'>${aufgabe.anweisung}</div>
           <div class='ma-zeile'>${aufgabe.zeile}</div>
           ${eingabeBlock}
           <div class='vt-rueckmeldung' id='maFeedback'></div>
-          ${maLeiter(aufgabe.bereich, plan.stufe <= 1)}
+          ${trainer.hilfe(aufgabe, plan.stufe <= 1)}
           ${maNebenblatt()}
         </div>
       </div>`;
@@ -6372,9 +6408,10 @@ function maGrLektion() {
       app.querySelectorAll('.ma-taste').forEach(b => b.onclick = () => {
         const z = b.dataset.z;
         if (z === '\u232b') eingabe = eingabe.slice(0, -1);
+        else if (z === '\u2212') { eingabe = eingabe.indexOf('\u2212') === 0 ? eingabe.slice(1) : '\u2212' + eingabe; }
         else if (eingabe.length < 12) {
           if ((z === ',' || z === ':') && eingabe.indexOf(z) >= 0) return;
-          if ((z === ',' || z === ':') && eingabe === '') return;
+          if ((z === ',' || z === ':') && (eingabe === '' || eingabe === '\u2212')) return;
           eingabe += z;
         }
         zeigen();
@@ -6430,51 +6467,873 @@ function maGrLektion() {
   naechste();
 }
 
-const MA_TYP_NAME = { um: 'Umrechnen', gemischt: 'Gemischte Schreibweise', bezug: 'Welche Einheit passt?',
+const MA_TYP_NAME = {
+ stellenwert:'Stellenwert', zerlegen:'Zahl zusammensetzen', zahlwort:'Zahlwörter', nachbarn:'Vorgänger und Nachfolger',
+ runden:'Runden', folge:'Zahlenreihen', kopf:'Kopfrechnen', begriff:'Fachbegriffe', vorrang:'Klammern und Punkt vor Strich',
+ ueberschlag:'Überschlag', umkehr:'Umkehraufgaben', gesetz:'Rechengesetze', gerade:'Zahlengerade', thermometer:'Thermometer',
+ unterschied:'Unterschied', flaeche:'Flächeninhalt', umfang:'Umfang', fehlend:'Fehlende Seite', flaecheneinheit:'Flächeneinheiten',
+ winkelart:'Winkelarten', winkelmass:'Winkel schätzen', koordinaten:'Koordinaten', einsetzen:'Einsetzen', loesen:'Gleichung lösen',
+ formel:'Formel anwenden', strichliste:'Strichliste', diagramm:'Diagramm lesen',
+ um: 'Umrechnen', gemischt: 'Gemischte Schreibweise', bezug: 'Welche Einheit passt?',
   vergleich: 'Vergleichen', ordnen: 'Ordnen', zeitspanne: 'Zeitspannen', einheit: 'Fehlende Einheit',
   weiter: 'Mehr und weniger als', bruch: 'Bruchteile' };
 
-function maGrBilanz(runde, gesamt, treffer, proTyp, fehler) {
+function maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler) {
+  const trainer = MA_TRAINER[bereichId];
   const quote = gesamt ? Math.round(treffer / gesamt * 100) : 0;
   progress.maRunden = progress.maRunden || {};
   /* Wie im Grammatik-Trainer seit v85: aufgestiegen wird nach Leistung,
      nicht nach Anzahl der Durchlaeufe. Abgestiegen wird nie. */
   const aufgestiegen = gesamt >= 5 && quote >= 65;
-  if (aufgestiegen) progress.maRunden.groessen = (progress.maRunden.groessen || 0) + 1;
-  const neueRunde = progress.maRunden.groessen || 0;
-  const naechsterPlan = maGrPlan(neueRunde);
+  if (aufgestiegen) progress.maRunden[bereichId] = (progress.maRunden[bereichId] || 0) + 1;
+  const neueRunde = progress.maRunden[bereichId] || 0;
+  const naechsterPlan = trainer.plan(neueRunde);
   let lohn = null;
-  if (gesamt >= 8) { try { lohn = maBelohnung('groessen'); } catch (e) {} }
+  if (gesamt >= 8) { try { lohn = maBelohnung(bereichId); } catch (e) {} }
   try {
     progress.session_log = progress.session_log || [];
     progress.session_log.push({ d: dayStamp(0), t: Date.now(), ms: MA_DAUER_SEC*1000, n: gesamt, ok: treffer,
-      err: gesamt - treffer, steps: gesamt, neu: 0, isl: 'mathe', art: 'mathe_groessen', done: true });
+      err: gesamt - treffer, steps: gesamt, neu: 0, isl: 'mathe', art: 'mathe_' + bereichId, done: true });
     while (progress.session_log.length > SESSION_LOG_MAX) progress.session_log.shift();
   } catch (e) {}
   try { saveProgress(); } catch (e) {}
   const spruch = gesamt === 0 ? 'Nichts gerechnet – beim nächsten Mal einfach loslegen.'
-    : quote >= 90 ? 'Das sitzt. Umrechnen ist für dich kein Thema mehr.'
-    : quote >= 75 ? 'Stark. Die Leiter hast du im Kopf, der Rest ist Übung.'
+    : quote >= 90 ? 'Das sitzt. Da macht dir so schnell keiner was vor.'
+    : quote >= 75 ? 'Stark. Die Regel hast du drin, der Rest ist Übung.'
     : quote >= 50 ? 'Guter Stand. Morgen dieselbe Runde – dann wird es Automatik.'
-    : 'Noch wackelig, und das ist normal. Die Umrechnungsleiter bleibt offen.';
+    : 'Noch wackelig, und das ist normal. Die Merkhilfe bleibt offen.';
   app.innerHTML = `
     ${renderMissionHeader()}
     <div class='session-shell'>
       <div class='card vt-bilanz-karte'>
-        <h2 style='margin:0 0 2px;'>Fünf Minuten Größen</h2>
+        <h2 style='margin:0 0 2px;'>Fünf Minuten ${trainer.titel}</h2>
         <div class='vt-quote'>${quote}%</div>
         <div class='map-sub' style='margin:0 0 12px;'>${treffer} von ${gesamt} Aufgaben auf Anhieb richtig</div>
         <p class='vt-spruch'>${spruch}</p>
         ${lohn && !lohn.schonHeute && lohn.gems ? `<div class='vt-lohn'>+${lohn.gems} 💎 und +${Math.round(lohn.sec/60)} Min Spielzeit</div>` : ''}
         ${Object.keys(proTyp).length ? `<div class='vt-block-titel'>Nach Aufgabenart</div><div class='gt-balken'>${Object.keys(proTyp).map(k => { const p = proTyp[k]; const q = Math.round(p.ok/p.n*100); return `<div class='gt-balken-zeile'><span>${MA_TYP_NAME[k]||k}</span><span class='gt-balken-spur'><span class='gt-balken-fuell' style='width:${q}%'></span></span><span class='gt-balken-zahl'>${q}%</span></div>`; }).join('')}</div>` : ''}
         ${fehler.length ? `<div class='vt-block-titel'>Nochmal anschauen</div><div class='gt-fehlerliste'>${fehler.slice(0,8).map(f => `<div class='gt-fehler'><span class='gt-fehler-satz'>${f.satz}</span><span class='vt-zusatz'>${f.erklaerung}</span></div>`).join('')}</div>` : ''}
-        <div class='map-sub' style='margin-top:12px;font-size:.85rem;'>Nächster Durchlauf: Stufe ${naechsterPlan.stufe} von 3, dabei ${naechsterPlan.bereiche.map(b => MA_GROESSEN[b].titel).join(', ')}${gesamt >= 5 && !aufgestiegen ? ' – wir bleiben auf dieser Stufe, bis sie sicher sitzt.' : ''}</div>
+        <div class='map-sub' style='margin-top:12px;font-size:.85rem;'>Nächster Durchlauf: Stufe ${naechsterPlan.stufe} von 3${naechsterPlan.bereiche ? ', dabei ' + naechsterPlan.bereiche.map(b => MA_GROESSEN[b].titel).join(', ') : ''}${gesamt >= 5 && !aufgestiegen ? ' – wir bleiben auf dieser Stufe, bis sie sicher sitzt.' : ''}</div>
         <button class='primary-btn' id='maNochmal' style='margin-top:14px;'>Nochmal 5 Minuten</button>
         <button class='secondary-btn' id='maZurWerkstatt' style='margin-top:8px;'>Zurück zur Werkstatt</button>
       </div>
     </div>`;
-  document.getElementById('maNochmal').onclick = () => maGrLektion();
+  document.getElementById('maNochmal').onclick = () => maLektionLauf(bereichId);
   document.getElementById('maZurWerkstatt').onclick = renderWerkstatt;
+}
+/* =========================================================================
+   v89: die restlichen sieben Kapitel aus 'Lernstufen Mathematik 5'.
+   Inhalt und Begriffe stammen aus den Zusammenfassungsseiten des Buches
+   (S. 28, 50, 78, 100, 130, 150, 170, 188), die Aufgabenformate zusaetzlich
+   aus Joules Catlux-Probearbeiten.
+   ========================================================================= */
+
+/* ---------- Deutsche Zahlwoerter ----------
+   Fuer 'Schreibe als Zahl: vier Millionen zweihundert...' (Catlux 0005,
+   0010, 5836). Umgekehrt braucht es das auch: eine Zahl vorlesen lassen. */
+const ZW_EINER = ['null','ein','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn','elf','zwölf','dreizehn','vierzehn','fünfzehn','sechzehn','siebzehn','achtzehn','neunzehn'];
+const ZW_ZEHNER = ['','','zwanzig','dreißig','vierzig','fünfzig','sechzig','siebzig','achtzig','neunzig'];
+function zwUnter100(n) {
+  if (n < 20) return ZW_EINER[n];
+  const z = Math.floor(n / 10), e = n % 10;
+  if (e === 0) return ZW_ZEHNER[z];
+  return ZW_EINER[e] + 'und' + ZW_ZEHNER[z];
+}
+function zwUnter1000(n) {
+  if (n < 100) return zwUnter100(n);
+  const h = Math.floor(n / 100), r = n % 100;
+  return ZW_EINER[h] + 'hundert' + (r ? zwUnter100(r) : '');
+}
+function zahlwort(n) {
+  if (n === 0) return 'null';
+  const gruppen = [
+    { wert: 1000000000, ein: 'eine Milliarde', mehr: ' Milliarden' },
+    { wert: 1000000, ein: 'eine Million', mehr: ' Millionen' },
+    { wert: 1000, ein: 'eintausend', mehr: 'tausend' }
+  ];
+  /* Deutsche Rechtschreibung: 'dreiundsechzigtausendzweiundfünfzig' ist EIN
+     Wort, 'vier Millionen' sind zwei. Die erste Fassung setzte ueberall
+     Leerzeichen - fuer ein Kind mit LRS ist ein falsch getrenntes Zahlwort
+     eine zusaetzliche Huerde, die nichts mit Mathe zu tun hat. */
+  let rest = n, teile = [];
+  for (const g of gruppen) {
+    const anz = Math.floor(rest / g.wert);
+    if (anz > 0) {
+      teile.push({ gross: g.wert >= 1000000, text: anz === 1 ? g.ein : zwUnter1000(anz) + g.mehr });
+      rest = rest % g.wert;
+    }
+  }
+  /* Am Ende steht 'eins', nicht 'ein': 2001 ist zweitausendeins. Innerhalb
+     eines Wortes bleibt es 'ein' (einundzwanzig, einhundert). */
+  if (rest > 0) teile.push({ gross: false, text: zwUnter1000(rest) });
+  let s = '';
+  teile.forEach((teil, i) => {
+    if (i === 0) { s = teil.text; return; }
+    s += (teil.gross || teile[i-1].gross) ? ' ' + teil.text : teil.text;
+  });
+  /* 'ein' steht allein nie: einhundert, einundzwanzig - aber 'eins'. */
+  /* Am ENDE der ganzen Zahl heißt es 'eins': 101 ist einhunderteins,
+   101000 dagegen einhunderteintausend. Deshalb wird erst hier gebeugt und
+   nicht in den Teilfunktionen. Kein deutsches Zahlwort endet sonst auf
+   'ein', die Regel ist also eindeutig. */
+  if (/ein$/.test(s)) s += 's';
+  return s;
+}
+/* Zahl mit Tausender-Leerzeichen, wie im Buch (63 714). */
+function maTausender(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '\u2009'); }
+
+/* =================== Kapitel 2: Die natuerlichen Zahlen (S. 29) =========== */
+const ZA_STELLEN = [
+  { k:'E', name:'Einer', f:1 }, { k:'Z', name:'Zehner', f:10 }, { k:'H', name:'Hunderter', f:100 },
+  { k:'T', name:'Tausender', f:1000 }, { k:'ZT', name:'Zehntausender', f:10000 },
+  { k:'HT', name:'Hunderttausender', f:100000 }, { k:'Mio', name:'Millionen', f:1000000 }
+];
+function zaZahl(stufe) {
+  if (stufe <= 1) return 1000 + maRnd(99000);
+  if (stufe === 2) return 100000 + maRnd(9900000);
+  return 1000000 + maRnd(999000000);
+}
+function zaStellenwert(stufe) {
+  const n = zaZahl(stufe);
+  const moegl = ZA_STELLEN.filter(s => s.f <= n);
+  const s = maWahl(moegl.slice(0, Math.min(moegl.length, stufe <= 1 ? 5 : 7)));
+  const ziffer = Math.floor(n / s.f) % 10;
+  return {
+    id: 'ma_za_stellenwert', typ: 'stellenwert', modus: 'zahl', komma: false,
+    anweisung: 'Welche Ziffer steht an dieser Stelle?',
+    zeile: maTausender(n) + '<br><span class="ma-klein">' + s.name + ' (' + s.k + ')</span>',
+    einheit: '', antwort: ziffer,
+    loesung: 'Bei ' + maTausender(n) + ' steht an der ' + s.name + '-Stelle die ' + ziffer + '.',
+    erklaerung: 'Von rechts zählen: E, Z, H, T, ZT, HT, Mio.'
+  };
+}
+function zaZerlegen(stufe) {
+  const n = zaZahl(Math.min(2, stufe));
+  const teile = [];
+  for (let i = ZA_STELLEN.length - 1; i >= 0; i--) {
+    const s = ZA_STELLEN[i];
+    const z = Math.floor(n / s.f) % 10;
+    if (z > 0 || teile.length) teile.push(z + ' ' + s.k);
+  }
+  return {
+    id: 'ma_za_zerlegen', typ: 'zerlegen', modus: 'zahl', komma: false,
+    anweisung: 'Welche Zahl ist das?',
+    zeile: teile.join(' '), einheit: '', antwort: n,
+    loesung: teile.join(' ') + ' = ' + maTausender(n),
+    erklaerung: 'Jede Stelle mit ihrem Stellenwert malnehmen und alles addieren.'
+  };
+}
+function zaZahlwort(stufe) {
+  const n = zaZahl(stufe);
+  if (maRnd(2) === 0) {
+    return {
+      id: 'ma_za_zahlwort', typ: 'zahlwort', modus: 'zahl', komma: false,
+      anweisung: 'Schreibe als Zahl.',
+      zeile: zahlwort(n), einheit: '', antwort: n,
+      loesung: zahlwort(n) + ' = ' + maTausender(n),
+      erklaerung: 'Erst die großen Gruppen (Millionen, Tausender), dann der Rest.'
+    };
+  }
+  const falsche = maMischen([n + 10, n - 100, n + 1000, n - 1].filter(x => x > 0)).slice(0, 3);
+  const opts = maMischen([n].concat(falsche));
+  return {
+    id: 'ma_za_zahlwort', typ: 'zahlwort', modus: 'wahl',
+    anweisung: 'Welche Zahl ist gemeint?',
+    zeile: zahlwort(n),
+    optionen: opts.map(x => ({ t: maTausender(x), ok: x === n })),
+    loesung: zahlwort(n) + ' = ' + maTausender(n),
+    erklaerung: 'Auf die Endung achten: -zig, -hundert, -tausend.'
+  };
+}
+function zaVergleich(stufe) {
+  const a = zaZahl(stufe);
+  let b = maRnd(4) === 0 ? a : (maRnd(2) ? a + (1 + maRnd(9)) * maWahl([1,10,100]) : a - (1 + maRnd(9)) * maWahl([1,10,100]));
+  if (b <= 0) b = a + 10;
+  return {
+    id: 'ma_za_vergleich', typ: 'vergleich', modus: 'wahl',
+    anweisung: 'Welches Zeichen gehört dazwischen?',
+    zeile: maTausender(a) + ' <span class="ma-luecke">?</span> ' + maTausender(b),
+    optionen: [ { t:'<', ok: a < b }, { t:'>', ok: a > b }, { t:'=', ok: a === b } ],
+    loesung: maTausender(a) + ' ' + (a < b ? '<' : a > b ? '>' : '=') + ' ' + maTausender(b),
+    erklaerung: 'Von links vergleichen: erst die Stelle mit dem größten Wert.'
+  };
+}
+function zaNachbarn(stufe) {
+  const n = zaZahl(stufe);
+  const vor = maRnd(2) === 0;
+  return {
+    id: 'ma_za_nachbarn', typ: 'nachbarn', modus: 'zahl', komma: false,
+    anweisung: vor ? 'Wie heißt der Vorgänger?' : 'Wie heißt der Nachfolger?',
+    zeile: maTausender(n), einheit: '', antwort: vor ? n - 1 : n + 1,
+    loesung: (vor ? 'Vorgänger' : 'Nachfolger') + ' von ' + maTausender(n) + ' ist ' + maTausender(vor ? n-1 : n+1) + '.',
+    erklaerung: 'Der Vorgänger steht links daneben, der Nachfolger rechts.'
+  };
+}
+function zaRunden(stufe) {
+  const n = zaZahl(stufe);
+  /* Eine neunstellige Zahl auf Zehner zu runden ist formal richtig und
+     didaktisch sinnlos. Die Rundungsstelle muss zur Groesse der Zahl passen:
+     mindestens ein Hundertstel davon. */
+  const ziele = [ {f:10,name:'Zehner'}, {f:100,name:'Hunderter'}, {f:1000,name:'Tausender'}, {f:10000,name:'Zehntausender'}, {f:100000,name:'Hunderttausender'}, {f:1000000,name:'Millionen'} ]
+    .filter(z => z.f < n && z.f >= n / 1000);
+  const z = maWahl(ziele.length ? ziele : [{f:10,name:'Zehner'}]);
+  const antwort = Math.round(n / z.f) * z.f;
+  const ziffer = Math.floor(n / (z.f / 10)) % 10;
+  return {
+    id: 'ma_za_runden', typ: 'runden', modus: 'zahl', komma: false,
+    anweisung: 'Runde auf ' + z.name + '.',
+    zeile: maTausender(n), einheit: '', antwort: antwort,
+    loesung: maTausender(n) + ' \u2248 ' + maTausender(antwort) + ' (' + z.name + ')',
+    erklaerung: 'Rundungsziffer ist die ' + ziffer + '. Bei 0-4 abrunden, bei 5-9 aufrunden.'
+  };
+}
+function zaFolge(stufe) {
+  const start = 100 + maRnd(900) * (stufe >= 2 ? 10 : 1);
+  const schritt = maWahl(stufe <= 1 ? [2,3,5,10,25,50] : [15,20,25,100,250,1000]);
+  const rueckwaerts = stufe >= 2 && maRnd(2) === 0;
+  const folge = [];
+  for (let i = 0; i < 5; i++) folge.push(start + (rueckwaerts ? -1 : 1) * schritt * i);
+  if (folge.some(x => x <= 0)) return zaRunden(stufe);
+  const antwort = start + (rueckwaerts ? -1 : 1) * schritt * 5;
+  if (antwort <= 0) return zaRunden(stufe);
+  return {
+    id: 'ma_za_folge', typ: 'folge', modus: 'zahl', komma: false,
+    anweisung: 'Wie geht die Reihe weiter?',
+    zeile: folge.map(maTausender).join(', ') + ', <span class="ma-luecke">?</span>',
+    einheit: '', antwort: antwort,
+    loesung: folge.map(maTausender).join(', ') + ', ' + maTausender(antwort),
+    erklaerung: 'Immer ' + (rueckwaerts ? 'minus ' : 'plus ') + schritt + '.'
+  };
+}
+function zaOrdnen(stufe) {
+  const basis = zaZahl(stufe);
+  const werte = [];
+  let schutz = 0;
+  while (werte.length < 4 && schutz++ < 60) {
+    const x = basis + maWahl([-300,-100,-30,-10,-3,3,10,30,100,300]) * maWahl([1,1,10]);
+    if (x <= 0 || werte.some(w => w.wert === x)) continue;
+    werte.push({ wert: x, text: maTausender(x) });
+  }
+  if (werte.length < 4) return zaVergleich(stufe);
+  const sortiert = werte.slice().sort((a,b) => a.wert - b.wert);
+  return {
+    id: 'ma_za_ordnen', typ: 'ordnen', modus: 'ordnen',
+    anweisung: 'Tippe von der kleinsten zur größten Zahl.', zeile: '',
+    karten: maMischen(werte), reihenfolge: sortiert.map(w => w.text),
+    loesung: sortiert.map(w => w.text).join(' < '),
+    erklaerung: 'Erst die Anzahl der Stellen vergleichen, dann von links Ziffer für Ziffer.'
+  };
+}
+function maZaPlan(runde) {
+  const stufe = Math.min(3, Math.max(1, Math.floor(runde / 2) + 1));
+  const arten = ['stellenwert', 'vergleich', 'nachbarn'];
+  if (stufe >= 1) arten.push('zahlwort', 'folge');
+  if (stufe >= 2) arten.push('runden', 'zerlegen');
+  if (stufe >= 3) arten.push('ordnen', 'runden');
+  return { stufe: stufe, arten: arten };
+}
+function maZaAufgabe(runde) {
+  const p = maZaPlan(runde);
+  const a = maWahl(p.arten);
+  if (a === 'stellenwert') return zaStellenwert(p.stufe);
+  if (a === 'zerlegen') return zaZerlegen(p.stufe);
+  if (a === 'zahlwort') return zaZahlwort(p.stufe);
+  if (a === 'vergleich') return zaVergleich(p.stufe);
+  if (a === 'nachbarn') return zaNachbarn(p.stufe);
+  if (a === 'runden') return zaRunden(p.stufe);
+  if (a === 'ordnen') return zaOrdnen(p.stufe);
+  return zaFolge(p.stufe);
+}
+function maZaHilfe(offen) {
+  const zeilen = ZA_STELLEN.slice().reverse().map(s => '<tr><td>' + s.k + '</td><td>' + s.name + '</td><td>' + maTausender(s.f) + '</td></tr>').join('');
+  return '<details class="ma-leiter"' + (offen ? ' open' : '') + '><summary>Stellenwerttafel</summary>' +
+    '<table class="ma-leiter-tabelle">' + zeilen + '</table>' +
+    '<div class="ma-leiter-hinweis">Runden: bei 0-4 ab, bei 5-9 auf.</div></details>';
+}
+/* =================== Kapitel 3: Rechnen mit natuerlichen Zahlen (S. 51) === */
+const RE_BEGRIFFE = [
+  { f:'Wie heißt das Ergebnis einer Addition?', a:'Summe', alt:['Differenz','Produkt','Quotient'] },
+  { f:'Wie heißt das Ergebnis einer Subtraktion?', a:'Differenz', alt:['Summe','Produkt','Quotient'] },
+  { f:'Wie heißt das Ergebnis einer Multiplikation?', a:'Produkt', alt:['Summe','Differenz','Quotient'] },
+  { f:'Wie heißt das Ergebnis einer Division?', a:'Quotient', alt:['Summe','Differenz','Produkt'] },
+  { f:'Was macht man beim Subtrahieren?', a:'abziehen', alt:['dazuzählen','malnehmen','teilen'] },
+  { f:'27 : 3 = 9 – wie heißt diese Rechenart?', a:'Division', alt:['Multiplikation','Addition','Subtraktion'] },
+  { f:'3 · 18 = 54 – wie heißt diese Rechenart?', a:'Multiplikation', alt:['Division','Addition','Subtraktion'] }
+];
+/* Zerlegt den groesseren Faktor in Zehner und Einer - genau der Rechenweg,
+   den das Buch beim halbschriftlichen Multiplizieren zeigt. */
+function maMalHilfe(a, b) {
+  const gross = Math.max(a, b), klein = Math.min(a, b);
+  if (gross < 10) return klein + ' \u00b7 ' + gross + ' Schritt für Schritt zusammenzählen.';
+  const z = Math.floor(gross / 10) * 10, e = gross % 10;
+  if (!e) return 'Zerlegen: ' + klein + ' \u00b7 ' + gross + ' = ' + klein + ' \u00b7 ' + z + ' = ' + (klein*z) + '.';
+  return 'Zerlegen: ' + klein + ' \u00b7 ' + gross + ' = ' + klein + ' \u00b7 ' + z + ' + ' + klein + ' \u00b7 ' + e + ' = ' + (klein*z) + ' + ' + (klein*e) + '.';
+}
+function reBegriff() {
+  const q = maWahl(RE_BEGRIFFE);
+  const opts = maMischen([q.a].concat(q.alt));
+  return { id:'ma_re_begriff', typ:'begriff', modus:'wahl', anweisung:'Fachbegriffe', zeile:q.f,
+    optionen: opts.map(o => ({ t:o, ok:o === q.a })), loesung: q.f + ' ' + q.a,
+    erklaerung:'Summe, Differenz, Produkt, Quotient – in der Reihenfolge plus, minus, mal, geteilt.' };
+}
+function reKopf(stufe) {
+  const art = maWahl(['+','-','*',':']);
+  let a, b, erg, zeile;
+  if (art === '+') { a = stufe<=1 ? 20+maRnd(80) : stufe===2 ? 200+maRnd(800) : 2000+maRnd(8000); b = stufe<=1 ? 5+maRnd(60) : stufe===2 ? 50+maRnd(500) : 500+maRnd(5000); erg = a+b; zeile = maTausender(a)+' + '+maTausender(b); }
+  else if (art === '-') { a = stufe<=1 ? 40+maRnd(60) : stufe===2 ? 300+maRnd(700) : 3000+maRnd(7000); b = 5+maRnd(Math.floor(a*0.8)); erg = a-b; zeile = maTausender(a)+' \u2212 '+maTausender(b); }
+  else if (art === '*') { a = stufe<=1 ? 2+maRnd(9) : stufe===2 ? 3+maRnd(17) : 12+maRnd(88); b = stufe<=1 ? 2+maRnd(9) : stufe===2 ? 4+maRnd(16) : 3+maRnd(9); erg = a*b; zeile = a+' \u00b7 '+b; }
+  else { b = 2+maRnd(stufe<=1?8:11); erg = 2+maRnd(stufe<=1?9:stufe===2?20:50); a = b*erg; zeile = maTausender(a)+' : '+b; }
+  return { id:'ma_re_kopf_'+(art==='+'?'add':art==='-'?'sub':art==='*'?'mul':'div'), typ:'kopf', modus:'zahl', komma:false,
+    anweisung:'Rechne im Kopf.', zeile: zeile+' = <span class="ma-luecke">?</span>', einheit:'', antwort:erg,
+    loesung: zeile+' = '+maTausender(erg),
+    erklaerung: art==='+'?'Erst die Zehner, dann die Einer.':art==='-'?'Probe: Ergebnis plus Abgezogenes ergibt die erste Zahl.':art==='*'?maMalHilfe(a,b):'Umkehraufgabe: '+erg+' · '+b+' = '+maTausender(a)+'.' };
+}
+function reVorrang(stufe) {
+  const a = 2+maRnd(18), b = 2+maRnd(9), c = 2+maRnd(9), d = 1+maRnd(9);
+  let zeile, erg, hinweis;
+  const form = maRnd(stufe>=2 ? 3 : 2);
+  if (form === 0) { erg = a + b*c; zeile = a+' + '+b+' \u00b7 '+c; hinweis = 'Punkt vor Strich: erst '+b+' · '+c+' = '+(b*c)+'.'; }
+  else if (form === 1) { const s = a + b; erg = s * c; zeile = '('+a+' + '+b+') \u00b7 '+c; hinweis = 'Klammer zuerst: '+a+' + '+b+' = '+s+'.'; }
+  else { const k = b + d; erg = a*c - k; if (erg < 0) return reVorrang(1); zeile = a+' \u00b7 '+c+' \u2212 ('+b+' + '+d+')'; hinweis = 'Erst die Klammer, dann Punkt vor Strich.'; }
+  return { id:'ma_re_vorrang', typ:'vorrang', modus:'zahl', komma:false,
+    anweisung:'Beachte Klammern und Punkt vor Strich.', zeile: zeile+' = <span class="ma-luecke">?</span>', einheit:'', antwort:erg,
+    loesung: zeile+' = '+erg, erklaerung: hinweis };
+}
+function reUeberschlag(stufe) {
+  const a = 100+maRnd(900), b = 100+maRnd(900);
+  const plus = maRnd(2) === 0;
+  const ra = Math.round(a/10)*10, rb = Math.round(b/10)*10;
+  const schaetz = plus ? ra+rb : Math.abs(ra-rb);
+  const echt = plus ? a+b : Math.abs(a-b);
+  const falsch = maMischen([schaetz+100, schaetz-100, schaetz+1000].filter(x => x > 0 && x !== schaetz)).slice(0,2);
+  const opts = maMischen([schaetz].concat(falsch));
+  return { id:'ma_re_ueberschlag', typ:'ueberschlag', modus:'wahl',
+    anweisung:'Welcher Überschlag passt?',
+    zeile: maTausender(a)+(plus?' + ':' \u2212 ')+maTausender(b),
+    optionen: opts.map(x => ({ t:'ungefähr '+maTausender(x), ok: x === schaetz })),
+    loesung: 'Überschlag: '+ra+(plus?' + ':' \u2212 ')+rb+' = '+schaetz+' (genau: '+echt+')',
+    erklaerung:'Beide Zahlen auf Zehner runden, dann rechnen.' };
+}
+function reUmkehr(stufe) {
+  const mal = maRnd(2) === 0;
+  if (mal) {
+    const b = 2+maRnd(11), erg = 3+maRnd(stufe<=1?12:40), a = b*erg;
+    return { id:'ma_re_umkehr', typ:'umkehr', modus:'zahl', komma:false,
+      anweisung:'Ergänze die fehlende Zahl.', zeile: b+' \u00b7 <span class="ma-luecke">?</span> = '+maTausender(a), einheit:'', antwort:erg,
+      loesung: b+' · '+erg+' = '+maTausender(a), erklaerung:'Umkehraufgabe: '+maTausender(a)+' : '+b+' = '+erg+'.' };
+  }
+  const erg = 20+maRnd(stufe<=1?80:900), b = 10+maRnd(stufe<=1?80:400), a = erg+b;
+  return { id:'ma_re_umkehr', typ:'umkehr', modus:'zahl', komma:false,
+    anweisung:'Ergänze die fehlende Zahl.', zeile: '<span class="ma-luecke">?</span> + '+maTausender(b)+' = '+maTausender(a), einheit:'', antwort:erg,
+    loesung: maTausender(erg)+' + '+maTausender(b)+' = '+maTausender(a), erklaerung:'Umkehraufgabe: '+maTausender(a)+' \u2212 '+maTausender(b)+' = '+maTausender(erg)+'.' };
+}
+function reGesetz(stufe) {
+  const a = 2+maRnd(18), b = 2+maRnd(18), c = 2+maRnd(9);
+  if (maRnd(2) === 0) {
+    return { id:'ma_re_gesetz', typ:'gesetz', modus:'zahl', komma:false,
+      anweisung:'Vertauschungsgesetz: Zahlen dürfen tauschen.', zeile: a+' + '+b+' = '+b+' + <span class="ma-luecke">?</span>', einheit:'', antwort:a,
+      loesung: a+' + '+b+' = '+b+' + '+a, erklaerung:'Bei Plus und Mal darf man die Zahlen vertauschen, das Ergebnis bleibt gleich.' };
+  }
+  return { id:'ma_re_gesetz', typ:'gesetz', modus:'zahl', komma:false,
+    anweisung:'Verbindungsgesetz: Klammern dürfen wandern.', zeile: '('+a+' + '+b+') + '+c+' = '+a+' + ('+b+' + <span class="ma-luecke">?</span>)', einheit:'', antwort:c,
+    loesung: '('+a+' + '+b+') + '+c+' = '+a+' + ('+b+' + '+c+')', erklaerung:'Bei Plus und Mal darf man anders zusammenfassen – das Ergebnis ändert sich nicht.' };
+}
+function maRePlan(runde) {
+  const stufe = Math.min(3, Math.max(1, Math.floor(runde/2)+1));
+  const arten = ['kopf','kopf','begriff'];
+  if (stufe >= 1) arten.push('umkehr');
+  if (stufe >= 2) arten.push('vorrang','ueberschlag');
+  if (stufe >= 3) arten.push('gesetz','vorrang','kopf');
+  return { stufe:stufe, arten:arten };
+}
+function maReAufgabe(runde) {
+  const p = maRePlan(runde); const a = maWahl(p.arten);
+  if (a === 'begriff') return reBegriff();
+  if (a === 'vorrang') return reVorrang(p.stufe);
+  if (a === 'ueberschlag') return reUeberschlag(p.stufe);
+  if (a === 'umkehr') return reUmkehr(p.stufe);
+  if (a === 'gesetz') return reGesetz(p.stufe);
+  return reKopf(p.stufe);
+}
+function maReHilfe(offen) {
+  return '<details class="ma-leiter"' + (offen ? ' open' : '') + '><summary>Rechenregeln</summary>' +
+    '<table class="ma-leiter-tabelle">' +
+    '<tr><td>1.</td><td>Klammern zuerst</td></tr>' +
+    '<tr><td>2.</td><td>Punkt vor Strich</td></tr>' +
+    '<tr><td>3.</td><td>von links nach rechts</td></tr></table>' +
+    '<div class="ma-leiter-hinweis">Summe = plus · Differenz = minus · Produkt = mal · Quotient = geteilt</div></details>';
+}
+/* =================== Kapitel 6: Die ganzen Zahlen (S. 131) =============== */
+function gzZahlengerade(stufe) {
+  const spanne = stufe <= 1 ? 7 : 12;
+  const start = -spanne + maRnd(2*spanne);
+  const schritt = 1 + maRnd(stufe <= 1 ? 5 : 9);
+  const rechts = maRnd(2) === 0;
+  const ziel = start + (rechts ? schritt : -schritt);
+  return { id:'ma_gz_gerade', typ:'gerade', modus:'zahl', komma:false, minus:true,
+    anweisung:'Wo steht er danach?',
+    zeile:'Start bei '+maVz(start)+'. '+schritt+' Felder nach '+(rechts?'rechts':'links')+'.',
+    einheit:'', antwort:ziel,
+    loesung: maVz(start)+' '+(rechts?'+':'\u2212')+' '+schritt+' = '+maVz(ziel),
+    erklaerung:'Nach rechts wird es größer, nach links kleiner – auch im Minusbereich.' };
+}
+function gzThermometer(stufe) {
+  const start = -(2 + maRnd(stufe <= 1 ? 12 : 25));
+  const aender = 1 + maRnd(stufe <= 1 ? 10 : 30);
+  const waermer = maRnd(2) === 0;
+  const ziel = start + (waermer ? aender : -aender);
+  return { id:'ma_gz_thermo', typ:'thermometer', modus:'zahl', komma:false, minus:true,
+    anweisung:'Wie viel Grad sind es dann?',
+    zeile:'Morgens '+maVz(start)+' \u00b0C. Es wird '+aender+' Grad '+(waermer?'wärmer':'kälter')+'.',
+    einheit:'\u00b0C', antwort:ziel,
+    loesung: maVz(start)+' \u00b0C '+(waermer?'+':'\u2212')+' '+aender+' = '+maVz(ziel)+' \u00b0C',
+    erklaerung:'Wärmer heißt auf der Zahlengeraden nach rechts, kälter nach links.' };
+}
+function gzVergleich(stufe) {
+  const spanne = stufe <= 1 ? 10 : 30;
+  let a = -spanne + maRnd(2*spanne), b = -spanne + maRnd(2*spanne);
+  if (a === b) b = a + 1;
+  return { id:'ma_gz_vergleich', typ:'vergleich', modus:'wahl',
+    anweisung:'Welche Zahl ist kleiner?',
+    zeile: maVz(a)+'<span class="ma-gegen"> oder </span>'+maVz(b),
+    optionen:[ { t:maVz(a), ok:a<b }, { t:maVz(b), ok:b<a } ],
+    loesung: (a<b?maVz(a)+' < '+maVz(b):maVz(b)+' < '+maVz(a)),
+    erklaerung:'Was weiter links auf der Zahlengeraden steht, ist kleiner. \u22128 ist kleiner als \u22123.' };
+}
+function gzOrdnen(stufe) {
+  const werte = []; let schutz = 0;
+  while (werte.length < 4 && schutz++ < 60) {
+    const x = -15 + maRnd(31);
+    if (werte.some(w => w.wert === x)) continue;
+    werte.push({ wert:x, text:maVz(x) });
+  }
+  if (werte.length < 4) return gzVergleich(stufe);
+  const sortiert = werte.slice().sort((a,b) => a.wert - b.wert);
+  return { id:'ma_gz_ordnen', typ:'ordnen', modus:'ordnen',
+    anweisung:'Tippe von der kleinsten zur größten Zahl.', zeile:'',
+    karten: maMischen(werte), reihenfolge: sortiert.map(w => w.text),
+    loesung: sortiert.map(w => w.text).join(' < '),
+    erklaerung:'Bei Minuszahlen gilt: je größer die Zahl hinter dem Minus, desto kleiner der Wert.' };
+}
+function gzUnterschied(stufe) {
+  const a = -(1 + maRnd(20)), b = 1 + maRnd(20);
+  return { id:'ma_gz_unterschied', typ:'unterschied', modus:'zahl', komma:false,
+    anweisung:'Wie viele Grad Unterschied sind das?',
+    zeile:'Nachts '+maVz(a)+' \u00b0C, mittags '+maVz(b)+' \u00b0C.', einheit:'Grad', antwort: b - a,
+    loesung:'Von '+maVz(a)+' bis '+maVz(b)+' sind es '+(b-a)+' Grad.',
+    erklaerung:'Erst bis zur Null ('+Math.abs(a)+'), dann weiter ('+b+').' };
+}
+/* Nur das Minus wird gezeigt. Die erste Fassung schrieb auch '+15 \u00b0C' -
+   das steht so auf keinem Thermometer. */
+function maVz(n) { return n < 0 ? '\u2212' + Math.abs(n) : String(n); }
+function maGzPlan(runde) {
+  const stufe = Math.min(3, Math.max(1, Math.floor(runde/2)+1));
+  const arten = ['vergleich','gerade'];
+  if (stufe >= 1) arten.push('thermometer');
+  if (stufe >= 2) arten.push('unterschied','gerade');
+  if (stufe >= 3) arten.push('ordnen');
+  return { stufe:stufe, arten:arten };
+}
+function maGzAufgabe(runde) {
+  const p = maGzPlan(runde); const a = maWahl(p.arten);
+  if (a === 'vergleich') return gzVergleich(p.stufe);
+  if (a === 'thermometer') return gzThermometer(p.stufe);
+  if (a === 'unterschied') return gzUnterschied(p.stufe);
+  if (a === 'ordnen') return gzOrdnen(p.stufe);
+  return gzZahlengerade(p.stufe);
+}
+function maGzHilfe(offen) {
+  const zahlen = [-5,-4,-3,-2,-1,0,1,2,3,4,5];
+  const breite = 300, abst = breite / (zahlen.length - 1);
+  const punkte = zahlen.map((z,i) => '<text x="'+(10+i*abst)+'" y="34" font-size="11" text-anchor="middle">'+(z<0?'\u2212'+Math.abs(z):z)+'</text><line x1="'+(10+i*abst)+'" y1="14" x2="'+(10+i*abst)+'" y2="22" stroke="#1C3D4A"/>').join('');
+  return '<details class="ma-leiter"' + (offen ? ' open' : '') + '><summary>Zahlengerade</summary>' +
+    '<svg viewBox="0 0 320 44" style="width:100%;max-width:340px;"><line x1="4" y1="18" x2="316" y2="18" stroke="#1C3D4A" stroke-width="2"/>' + punkte + '</svg>' +
+    '<div class="ma-leiter-hinweis">Nach rechts größer, nach links kleiner. Null ist die Mitte.</div></details>';
+}
+
+/* =================== Kapitel 7: Flaecheninhalte - Rechtecke (S. 151) ===== */
+const FL_EINHEITEN = [ {e:'mm²',f:1}, {e:'cm²',f:100}, {e:'dm²',f:10000}, {e:'m²',f:1000000} ];
+function flFlaeche(stufe) {
+  const a = 2 + maRnd(stufe<=1 ? 8 : 18), b = 2 + maRnd(stufe<=1 ? 8 : 18);
+  const quadrat = maRnd(4) === 0;
+  const bb = quadrat ? a : b;
+  return { id:'ma_fl_flaeche', typ:'flaeche', modus:'zahl', komma:false,
+    anweisung: quadrat ? 'Berechne den Flächeninhalt des Quadrats.' : 'Berechne den Flächeninhalt des Rechtecks.',
+    zeile: quadrat ? 'Seite a = '+a+' cm' : 'a = '+a+' cm, b = '+bb+' cm',
+    einheit:'cm²', antwort: a*bb,
+    loesung:'A = '+a+' cm · '+bb+' cm = '+(a*bb)+' cm²',
+    erklaerung: quadrat ? 'Quadrat: A = Seite · Seite' : 'Rechteck: A = Länge · Breite' };
+}
+function flUmfang(stufe) {
+  const a = 2 + maRnd(stufe<=1 ? 10 : 25), b = 2 + maRnd(stufe<=1 ? 10 : 25);
+  const quadrat = maRnd(4) === 0; const bb = quadrat ? a : b;
+  return { id:'ma_fl_umfang', typ:'umfang', modus:'zahl', komma:false,
+    anweisung:'Berechne den Umfang.',
+    zeile: quadrat ? 'Quadrat, Seite a = '+a+' cm' : 'Rechteck, a = '+a+' cm, b = '+bb+' cm',
+    einheit:'cm', antwort: 2*(a+bb),
+    loesung: quadrat ? 'u = 4 · '+a+' cm = '+(4*a)+' cm' : 'u = 2 · ('+a+' cm + '+bb+' cm) = '+(2*(a+bb))+' cm',
+    erklaerung:'Umfang heißt einmal rundherum: u = 2 · a + 2 · b.' };
+}
+function flFehlend(stufe) {
+  const a = 2 + maRnd(14), b = 2 + maRnd(14);
+  const A = a*b;
+  return { id:'ma_fl_fehlend', typ:'fehlend', modus:'zahl', komma:false,
+    anweisung:'Welche Seite fehlt?',
+    zeile:'Rechteck: A = '+A+' cm², b = '+b+' cm, a = <span class="ma-luecke">?</span>',
+    einheit:'cm', antwort:a,
+    loesung:'a = '+A+' cm² : '+b+' cm = '+a+' cm',
+    erklaerung:'Umkehraufgabe zu A = a · b: a = A : b.' };
+}
+function flEinheiten(stufe) {
+  const i = maRnd(FL_EINHEITEN.length);
+  const kand = [];
+  for (let k=0;k<FL_EINHEITEN.length;k++) { if (k===i) continue; const v = Math.max(FL_EINHEITEN[i].f/FL_EINHEITEN[k].f, FL_EINHEITEN[k].f/FL_EINHEITEN[i].f); if (v <= (stufe>=3?10000:100)) kand.push(k); }
+  if (!kand.length) return flFlaeche(stufe);
+  const j = maWahl(kand);
+  const von = FL_EINHEITEN[i], nach = FL_EINHEITEN[j];
+  let wert, antwort;
+  if (von.f >= nach.f) { wert = 1 + maRnd(stufe<=1?9:40); antwort = wert * (von.f/nach.f); }
+  else { const teiler = nach.f/von.f; antwort = 1 + maRnd(stufe<=1?9:30); wert = antwort * teiler; }
+  return { id:'ma_fl_einheiten', typ:'flaecheneinheit', modus:'zahl', komma:false,
+    anweisung:'Rechne um.',
+    zeile: maTausender(wert)+' '+von.e+' = <span class="ma-luecke">?</span> '+nach.e,
+    einheit: nach.e, antwort: antwort,
+    loesung: maTausender(wert)+' '+von.e+' = '+maTausender(antwort)+' '+nach.e,
+    erklaerung:'Bei Flächen ist der Schritt 100, nicht 10: 1 cm² = 100 mm².' };
+}
+function maFlPlan(runde) {
+  const stufe = Math.min(3, Math.max(1, Math.floor(runde/2)+1));
+  const arten = ['flaeche','umfang'];
+  if (stufe >= 2) arten.push('einheiten','flaeche');
+  if (stufe >= 3) arten.push('fehlend','einheiten');
+  return { stufe:stufe, arten:arten };
+}
+function maFlAufgabe(runde) {
+  const p = maFlPlan(runde); const a = maWahl(p.arten);
+  if (a === 'umfang') return flUmfang(p.stufe);
+  if (a === 'einheiten') return flEinheiten(p.stufe);
+  if (a === 'fehlend') return flFehlend(p.stufe);
+  return flFlaeche(p.stufe);
+}
+function maFlHilfe(offen) {
+  return '<details class="ma-leiter"' + (offen ? ' open' : '') + '><summary>Formeln und Einheiten</summary>' +
+    '<table class="ma-leiter-tabelle">' +
+    '<tr><td>Rechteck</td><td>A = a · b</td></tr>' +
+    '<tr><td>Quadrat</td><td>A = a · a</td></tr>' +
+    '<tr><td>Umfang</td><td>u = 2 · a + 2 · b</td></tr>' +
+    '<tr><td>1 cm²</td><td>= 100 mm²</td></tr>' +
+    '<tr><td>1 dm²</td><td>= 100 cm²</td></tr>' +
+    '<tr><td>1 m²</td><td>= 100 dm²</td></tr></table>' +
+    '<div class="ma-leiter-hinweis">Bei Flächen ist der Schritt 100, nicht 10.</div></details>';
+}
+/* =================== Kapitel 8: Gleichungen und Formeln (S. 171) ======== */
+function glEinsetzen(stufe) {
+  const x = 3 + maRnd(stufe<=1?15:60), b = 2 + maRnd(stufe<=1?20:80);
+  const erg = x + b;
+  const probiert = maRnd(2) === 0 ? x : x + maWahl([-3,-2,-1,1,2,3]);
+  const stimmt = probiert === x;
+  return { id:'ma_gl_einsetzen', typ:'einsetzen', modus:'wahl',
+    anweisung:'Ist das eine Lösung?',
+    zeile:'x + '+b+' = '+erg+'<br><span class="ma-klein">Probiere x = '+probiert+'</span>',
+    optionen:[ { t:'Ja, das stimmt', ok:stimmt }, { t:'Nein, das stimmt nicht', ok:!stimmt } ],
+    loesung: probiert+' + '+b+' = '+(probiert+b)+(stimmt?' – wahr, also ist x = '+x+' die Lösung.':' – falsch, also ist x = '+probiert+' keine Lösung.'),
+    erklaerung:'Einsetzen und nachrechnen: ergibt es eine wahre Aussage?' };
+}
+function glLoesen(stufe) {
+  const form = maRnd(stufe>=2 ? 3 : 2);
+  if (form === 0) { const x = 10+maRnd(stufe<=1?90:900), b = 10+maRnd(stufe<=1?90:500);
+    return { id:'ma_gl_loesen', typ:'loesen', modus:'zahl', komma:false, anweisung:'Wie heißt x?',
+      zeile:'x + '+maTausender(b)+' = '+maTausender(x+b), einheit:'', antwort:x,
+      loesung:'x = '+maTausender(x+b)+' \u2212 '+maTausender(b)+' = '+maTausender(x),
+      erklaerung:'Umkehraufgabe: aus plus wird minus.' }; }
+  if (form === 1) {
+    /* Erst die Differenz wuerfeln, dann x daraus bilden - so ist x immer
+       groesser als der Abzug und die Aufgabe bleibt im Zahlenraum. */
+    const b = 5+maRnd(50), rest = 10+maRnd(stufe<=1?90:400), x = rest + b;
+    return { id:'ma_gl_loesen', typ:'loesen', modus:'zahl', komma:false, anweisung:'Wie heißt x?',
+      zeile:'x \u2212 '+b+' = '+maTausender(rest), einheit:'', antwort: x,
+      loesung:'x = '+maTausender(rest)+' + '+b+' = '+maTausender(x),
+      erklaerung:'Umkehraufgabe: aus minus wird plus.' }; }
+  const b = 2+maRnd(11), x = 2+maRnd(stufe<=1?12:40);
+  return { id:'ma_gl_loesen', typ:'loesen', modus:'zahl', komma:false, anweisung:'Wie heißt x?',
+    zeile: b+' \u00b7 x = '+maTausender(b*x), einheit:'', antwort:x,
+    loesung:'x = '+maTausender(b*x)+' : '+b+' = '+x,
+    erklaerung:'Umkehraufgabe: aus mal wird geteilt.' };
+}
+function glFormel(stufe) {
+  const a = 2+maRnd(15), b = 2+maRnd(15);
+  if (maRnd(2) === 0) {
+    return { id:'ma_gl_formel', typ:'formel', modus:'zahl', komma:false,
+      anweisung:'Setze in die Formel ein.',
+      zeile:'u = 2 · a + 2 · b<br><span class="ma-klein">a = '+a+', b = '+b+'</span>', einheit:'', antwort: 2*a+2*b,
+      loesung:'u = 2 · '+a+' + 2 · '+b+' = '+(2*a+2*b),
+      erklaerung:'Für a und b die Zahlen einsetzen, dann Punkt vor Strich.' };
+  }
+  return { id:'ma_gl_formel', typ:'formel', modus:'zahl', komma:false,
+    anweisung:'Setze in die Formel ein.',
+    zeile:'A = a · a<br><span class="ma-klein">a = '+a+'</span>', einheit:'', antwort: a*a,
+    loesung:'A = '+a+' · '+a+' = '+(a*a),
+    erklaerung:'Für a die Zahl einsetzen und malnehmen.' };
+}
+function glBegriff() {
+  const q = maWahl([
+    { f:'Wie heißt ein Platzhalter in einer Gleichung?', a:'Variable', alt:['Summe','Formel','Quotient'] },
+    { f:'Wie nennt man 5 · 6 \u2212 4?', a:'Rechenausdruck', alt:['Gleichung','Variable','Lösung'] },
+    { f:'Zwei Rechenausdrücke mit demselben Wert bilden eine ...', a:'Gleichung', alt:['Variable','Summe','Formel'] },
+    { f:'Die Zahl, die eine Gleichung wahr macht, heißt ...', a:'Lösung', alt:['Variable','Produkt','Formel'] }
+  ]);
+  const opts = maMischen([q.a].concat(q.alt));
+  return { id:'ma_gl_begriff', typ:'begriff', modus:'wahl', anweisung:'Fachbegriffe', zeile:q.f,
+    optionen: opts.map(o => ({ t:o, ok:o===q.a })), loesung: q.f+' '+q.a,
+    erklaerung:'Rechenausdruck – Gleichung – Variable – Lösung.' };
+}
+function maGlPlan(runde) {
+  const stufe = Math.min(3, Math.max(1, Math.floor(runde/2)+1));
+  const arten = ['einsetzen','begriff'];
+  if (stufe >= 1) arten.push('loesen');
+  if (stufe >= 2) arten.push('formel','loesen');
+  if (stufe >= 3) arten.push('loesen','formel');
+  return { stufe:stufe, arten:arten };
+}
+function maGlAufgabe(runde) {
+  const p = maGlPlan(runde); const a = maWahl(p.arten);
+  if (a === 'begriff') return glBegriff();
+  if (a === 'loesen') return glLoesen(p.stufe);
+  if (a === 'formel') return glFormel(p.stufe);
+  return glEinsetzen(p.stufe);
+}
+function maGlHilfe(offen) {
+  return '<details class="ma-leiter"' + (offen ? ' open' : '') + '><summary>Umkehraufgaben</summary>' +
+    '<table class="ma-leiter-tabelle">' +
+    '<tr><td>x + 310 = 640</td><td>x = 640 \u2212 310</td></tr>' +
+    '<tr><td>x \u2212 12 = 30</td><td>x = 30 + 12</td></tr>' +
+    '<tr><td>7 · x = 56</td><td>x = 56 : 7</td></tr></table>' +
+    '<div class="ma-leiter-hinweis">Plus und minus kehren sich um, mal und geteilt auch.</div></details>';
+}
+
+/* =================== Kapitel 1: Daten (S. 7) ============================= */
+const DA_THEMEN = [
+  { frage:'Lieblingssport', werte:['Fußball','Schwimmen','Reiten','Turnen'] },
+  { frage:'Lieblingstier', werte:['Hund','Katze','Pferd','Hamster'] },
+  { frage:'Schulweg', werte:['zu Fuß','Rad','Bus','Auto'] },
+  { frage:'Lieblingsfach', werte:['Sport','Mathe','Kunst','Musik'] },
+  { frage:'Lieblingseis', werte:['Vanille','Schoko','Erdbeere','Zitrone'] }
+];
+function daDaten(stufe) {
+  const th = maWahl(DA_THEMEN);
+  return th.werte.map(w => ({ name:w, n: 1 + maRnd(stufe<=1 ? 9 : 18) }));
+}
+function daStrichliste(stufe) {
+  const daten = daDaten(stufe);
+  const ziel = maWahl(daten);
+  const striche = n => { let s=''; for (let i=0;i<Math.floor(n/5);i++) s += '<span class="da-buendel">||||</span> '; for (let i=0;i<n%5;i++) s += '|'; return s; };
+  const zeilen = daten.map(d => '<tr><td>'+d.name+'</td><td class="da-striche">'+striche(d.n)+'</td></tr>').join('');
+  return { id:'ma_da_strichliste', typ:'strichliste', modus:'zahl', komma:false,
+    anweisung:'Wie oft wurde \u201e'+ziel.name+'\u201c genannt?',
+    zeile:'<table class="da-tabelle">'+zeilen+'</table>', einheit:'mal', antwort: ziel.n,
+    loesung:'\u201e'+ziel.name+'\u201c wurde '+ziel.n+'-mal genannt.',
+    erklaerung:'Ein Bündel sind fünf Striche. Bündel zählen, dann die einzelnen dazu.' };
+}
+function daDiagramm(stufe) {
+  const daten = daDaten(stufe);
+  const max = Math.max.apply(null, daten.map(d => d.n));
+  const bh = 120, bw = 46, luecke = 18, links = 30;
+  const balken = daten.map((d,i) => {
+    const h = Math.round(d.n / max * bh);
+    const x = links + i*(bw+luecke);
+    return '<rect x="'+x+'" y="'+(bh+10-h)+'" width="'+bw+'" height="'+h+'" fill="#C8A063"/>' +
+      '<text x="'+(x+bw/2)+'" y="'+(bh+26)+'" font-size="11" text-anchor="middle">'+d.name+'</text>';
+  }).join('');
+  const achse = [];
+  for (let v=0; v<=max; v += Math.max(1, Math.ceil(max/5))) {
+    const y = bh+10 - Math.round(v/max*bh);
+    achse.push('<text x="22" y="'+(y+4)+'" font-size="10" text-anchor="end">'+v+'</text><line x1="26" y1="'+y+'" x2="'+(links+daten.length*(bw+luecke))+'" y2="'+y+'" stroke="#E4DCCF"/>');
+  }
+  const svg = '<svg viewBox="0 0 '+(links+daten.length*(bw+luecke)+10)+' '+(bh+34)+'" style="width:100%;max-width:420px;">'+achse.join('')+balken+'<line x1="26" y1="'+(bh+10)+'" x2="'+(links+daten.length*(bw+luecke))+'" y2="'+(bh+10)+'" stroke="#1C3D4A" stroke-width="2"/></svg>';
+  const art = maRnd(3);
+  if (art === 0) {
+    const ziel = maWahl(daten);
+    return { id:'ma_da_ablesen', typ:'diagramm', modus:'zahl', komma:false,
+      anweisung:'Lies ab: Wie viele bei \u201e'+ziel.name+'\u201c?', zeile:svg, einheit:'', antwort:ziel.n,
+      loesung:'\u201e'+ziel.name+'\u201c: '+ziel.n, erklaerung:'An der Höhe der Säule ablesen und an der linken Achse vergleichen.' };
+  }
+  if (art === 1) {
+    const beste = daten.slice().sort((a,b) => b.n - a.n)[0];
+    return { id:'ma_da_hoechste', typ:'diagramm', modus:'wahl',
+      anweisung:'Welche Säule ist am höchsten?', zeile:svg,
+      optionen: maMischen(daten.map(d => ({ t:d.name, ok:d.name === beste.name }))),
+      loesung:'Am höchsten ist \u201e'+beste.name+'\u201c mit '+beste.n+'.', erklaerung:'Die höchste Säule steht für die größte Anzahl.' };
+  }
+  const summe = daten.reduce((s,d) => s + d.n, 0);
+  return { id:'ma_da_summe', typ:'diagramm', modus:'zahl', komma:false,
+    anweisung:'Wie viele wurden insgesamt befragt?', zeile:svg, einheit:'', antwort:summe,
+    loesung:'Zusammen: '+daten.map(d => d.n).join(' + ')+' = '+summe,
+    erklaerung:'Alle Säulen zusammenzählen.' };
+}
+function daBegriff() {
+  const q = maWahl([
+    { f:'Wie heißt die erste, ungeordnete Liste aller Antworten?', a:'Urliste', alt:['Strichliste','Diagramm','Tabelle'] },
+    { f:'Wie viele Striche sind ein Bündel?', a:'5', alt:['3','4','10'] },
+    { f:'Ein quer gelegtes Säulendiagramm heißt ...', a:'Balkendiagramm', alt:['Figurendiagramm','Urliste','Strichliste'] },
+    { f:'Bei welchem Diagramm steht ein Zeichen für mehrere?', a:'Figurendiagramm', alt:['Säulendiagramm','Balkendiagramm','Strichliste'] }
+  ]);
+  const opts = maMischen([q.a].concat(q.alt));
+  return { id:'ma_da_begriff', typ:'begriff', modus:'wahl', anweisung:'Fachbegriffe', zeile:q.f,
+    optionen: opts.map(o => ({ t:o, ok:o===q.a })), loesung:q.f+' '+q.a,
+    erklaerung:'Urliste \u2192 Strichliste \u2192 Häufigkeitstabelle \u2192 Diagramm.' };
+}
+function maDaPlan(runde) {
+  const stufe = Math.min(3, Math.max(1, Math.floor(runde/2)+1));
+  const arten = ['strichliste','diagramm','begriff'];
+  if (stufe >= 2) arten.push('diagramm');
+  return { stufe:stufe, arten:arten };
+}
+function maDaAufgabe(runde) {
+  const p = maDaPlan(runde); const a = maWahl(p.arten);
+  if (a === 'strichliste') return daStrichliste(p.stufe);
+  if (a === 'begriff') return daBegriff();
+  return daDiagramm(p.stufe);
+}
+function maDaHilfe(offen) {
+  return '<details class="ma-leiter"' + (offen ? ' open' : '') + '><summary>Merkhilfe</summary>' +
+    '<table class="ma-leiter-tabelle">' +
+    '<tr><td>Urliste</td><td>alle Antworten, ungeordnet</td></tr>' +
+    '<tr><td>Strichliste</td><td>Bündel zu je 5</td></tr>' +
+    '<tr><td>Häufigkeit</td><td>wie oft genannt</td></tr></table>' +
+    '<div class="ma-leiter-hinweis">Im Säulendiagramm zeigt die Höhe die Anzahl.</div></details>';
+}
+/* =================== Kapitel 5: Grundbegriffe der Geometrie (S. 101) ===== */
+function geoBegriff() {
+  const q = maWahl([
+    { f:'Was hat einen Anfangs- und einen Endpunkt?', a:'Strecke', alt:['Gerade','Winkel','Abstand'] },
+    { f:'Was hat weder Anfang noch Ende?', a:'Gerade', alt:['Strecke','Vieleck','Schenkel'] },
+    { f:'Zwei Geraden bilden einen rechten Winkel. Sie sind ...', a:'senkrecht zueinander', alt:['parallel zueinander','gleich lang','ein Vieleck'] },
+    { f:'Zwei Geraden haben überall denselben Abstand. Sie sind ...', a:'parallel zueinander', alt:['senkrecht zueinander','gleich lang','ein Winkel'] },
+    { f:'Eine Figur nur aus Strecken heißt ...', a:'Vieleck', alt:['Gerade','Winkel','Koordinate'] },
+    { f:'Wie viele Ecken hat ein Sechseck?', a:'6', alt:['4','5','8'] },
+    { f:'Die beiden Linien eines Winkels heißen ...', a:'Schenkel', alt:['Strecken','Koordinaten','Seiten'] },
+    { f:'Der Punkt, von dem die Schenkel ausgehen, heißt ...', a:'Scheitelpunkt', alt:['Ursprung','Eckpunkt','Mittelpunkt'] }
+  ]);
+  const opts = maMischen([q.a].concat(q.alt));
+  return { id:'ma_geo_begriff', typ:'begriff', modus:'wahl', anweisung:'Fachbegriffe', zeile:q.f,
+    optionen: opts.map(o => ({ t:o, ok:o===q.a })), loesung:q.f+' '+q.a,
+    erklaerung:'Strecke und Gerade, senkrecht \u22a5 und parallel \u2225, Scheitelpunkt und Schenkel.' };
+}
+function geoWinkelBild(grad) {
+  const r = 58, cx = 18, cy = 76;
+  const rad = grad * Math.PI / 180;
+  const x2 = cx + r*Math.cos(-rad), y2 = cy + r*Math.sin(-rad);
+  const bogen = 'M '+(cx+22)+' '+cy+' A 22 22 0 '+(grad>180?1:0)+' 0 '+(cx+22*Math.cos(-rad))+' '+(cy+22*Math.sin(-rad));
+  return '<svg viewBox="0 0 150 92" style="width:160px;max-width:60%;">'+
+    '<line x1="'+cx+'" y1="'+cy+'" x2="'+(cx+r)+'" y2="'+cy+'" stroke="#1C3D4A" stroke-width="2.5"/>'+
+    '<line x1="'+cx+'" y1="'+cy+'" x2="'+x2+'" y2="'+y2+'" stroke="#1C3D4A" stroke-width="2.5"/>'+
+    '<path d="'+bogen+'" fill="none" stroke="#C8A063" stroke-width="2"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="3" fill="#1C3D4A"/></svg>';
+}
+function geoWinkelart(stufe) {
+  const grad = maWahl([15,25,35,45,60,75,90,90,105,120,135,150,165,180]);
+  const art = grad < 90 ? 'spitzer Winkel' : grad === 90 ? 'rechter Winkel' : grad < 180 ? 'stumpfer Winkel' : 'gestreckter Winkel';
+  const alle = ['spitzer Winkel','rechter Winkel','stumpfer Winkel','gestreckter Winkel'];
+  return { id:'ma_geo_winkelart', typ:'winkelart', modus:'wahl',
+    anweisung:'Welcher Winkel ist das?',
+    zeile: geoWinkelBild(grad)+'<div class="ma-klein">'+grad+'\u00b0</div>',
+    optionen: maMischen(alle.map(a => ({ t:a, ok:a === art }))),
+    loesung: grad+'\u00b0 ist ein '+art+'.',
+    erklaerung:'Unter 90\u00b0 spitz, genau 90\u00b0 recht, zwischen 90\u00b0 und 180\u00b0 stumpf, genau 180\u00b0 gestreckt.' };
+}
+function geoWinkelSchaetzen(stufe) {
+  const grad = maWahl([20,30,40,50,60,70,80,100,110,120,130,140,150,160]);
+  const falsch = maMischen([grad+30, grad-30, grad+50, grad-50].filter(x => x > 5 && x < 180 && x !== grad)).slice(0,3);
+  return { id:'ma_geo_winkelmass', typ:'winkelmass', modus:'wahl',
+    anweisung:'Schätze: wie groß ist der Winkel?', zeile: geoWinkelBild(grad),
+    optionen: maMischen([grad].concat(falsch)).map(x => ({ t:x+'\u00b0', ok:x === grad })),
+    loesung:'Der Winkel misst '+grad+'\u00b0.',
+    erklaerung:'Vergleiche mit 90\u00b0 (rechter Winkel) und 45\u00b0 (halber rechter Winkel).' };
+}
+function geoGitter(punkte, markiert) {
+  const n = 9, s = 22, rand = 18;
+  let g = '';
+  for (let i = 0; i <= n; i++) {
+    g += '<line x1="'+rand+'" y1="'+(rand+i*s)+'" x2="'+(rand+n*s)+'" y2="'+(rand+i*s)+'" stroke="#E4DCCF"/>';
+    g += '<line x1="'+(rand+i*s)+'" y1="'+rand+'" x2="'+(rand+i*s)+'" y2="'+(rand+n*s)+'" stroke="#E4DCCF"/>';
+  }
+  g += '<line x1="'+rand+'" y1="'+(rand+n*s)+'" x2="'+(rand+n*s+6)+'" y2="'+(rand+n*s)+'" stroke="#1C3D4A" stroke-width="2"/>';
+  g += '<line x1="'+rand+'" y1="'+(rand-6)+'" x2="'+rand+'" y2="'+(rand+n*s)+'" stroke="#1C3D4A" stroke-width="2"/>';
+  for (let i = 1; i <= n; i++) {
+    g += '<text x="'+(rand+i*s)+'" y="'+(rand+n*s+14)+'" font-size="9" text-anchor="middle">'+i+'</text>';
+    g += '<text x="'+(rand-5)+'" y="'+(rand+n*s-i*s+3)+'" font-size="9" text-anchor="end">'+i+'</text>';
+  }
+  punkte.forEach(p => {
+    const x = rand + p.x*s, y = rand + n*s - p.y*s;
+    g += '<circle cx="'+x+'" cy="'+y+'" r="4.5" fill="'+(p.name===markiert?'#E07A5F':'#C8A063')+'"/>';
+    if (p.name) g += '<text x="'+(x+7)+'" y="'+(y-6)+'" font-size="11" font-weight="700">'+p.name+'</text>';
+  });
+  return '<svg viewBox="0 0 '+(rand+n*s+16)+' '+(rand+n*s+20)+'" style="width:100%;max-width:300px;">'+g+'</svg>';
+}
+function geoKoordinaten(stufe) {
+  const p = { x: 1+maRnd(8), y: 1+maRnd(8), name:'P' };
+  if (maRnd(2) === 0) {
+    return { id:'ma_geo_koordinaten', typ:'koordinaten', modus:'wahl',
+      anweisung:'Wie heißen die Koordinaten von P?', zeile: geoGitter([p], 'P'),
+      optionen: maMischen([ {x:p.x,y:p.y}, {x:p.y,y:p.x}, {x:p.x+1,y:p.y}, {x:p.x,y:p.y-1} ]
+        .filter((c,i,arr) => arr.findIndex(d => d.x===c.x && d.y===c.y) === i && c.y > 0)
+        .map(c => ({ t:'P('+c.x+'|'+c.y+')', ok: c.x===p.x && c.y===p.y }))),
+      loesung:'P('+p.x+'|'+p.y+')',
+      erklaerung:'Erst nach rechts (x), dann nach oben (y). Man schreibt P(x|y).' };
+  }
+  const andere = [];
+  let schutz = 0;
+  while (andere.length < 3 && schutz++ < 40) {
+    const q = { x:1+maRnd(8), y:1+maRnd(8), name:String.fromCharCode(65+andere.length) };
+    if ((q.x===p.x && q.y===p.y) || andere.some(o => o.x===q.x && o.y===q.y)) continue;
+    andere.push(q);
+  }
+  const alle = maMischen(andere.concat([{ x:p.x, y:p.y, name:'D' }]));
+  alle.forEach((q,i) => q.name = String.fromCharCode(65+i));
+  const richtig = alle.filter(q => q.x===p.x && q.y===p.y)[0];
+  return { id:'ma_geo_koordinaten', typ:'koordinaten', modus:'wahl',
+    anweisung:'Welcher Punkt liegt bei ('+p.x+'|'+p.y+')?', zeile: geoGitter(alle, null),
+    optionen: maMischen(alle.map(q => ({ t:'Punkt '+q.name, ok:q.name === richtig.name }))),
+    loesung:'Punkt '+richtig.name+' liegt bei ('+p.x+'|'+p.y+').',
+    erklaerung:'Erste Zahl nach rechts, zweite nach oben.' };
+}
+function geoUmfangVieleck(stufe) {
+  const n = stufe <= 1 ? 3 : 3 + maRnd(3);
+  const seiten = [];
+  for (let i=0;i<n;i++) seiten.push(1 + maRnd(stufe<=1 ? 9 : 20));
+  const name = n===3 ? 'Dreieck' : n===4 ? 'Viereck' : n===5 ? 'Fünfeck' : 'Sechseck';
+  return { id:'ma_geo_umfang', typ:'umfang', modus:'zahl', komma:false,
+    anweisung:'Berechne den Umfang.',
+    zeile: name+' mit den Seiten<br>'+seiten.map(s => s+' cm').join(' · '),
+    einheit:'cm', antwort: seiten.reduce((a,b)=>a+b,0),
+    loesung:'u = '+seiten.join(' + ')+' = '+seiten.reduce((a,b)=>a+b,0)+' cm',
+    erklaerung:'Umfang heißt: alle Seiten zusammenzählen.' };
+}
+function maGeoPlan(runde) {
+  const stufe = Math.min(3, Math.max(1, Math.floor(runde/2)+1));
+  const arten = ['begriff','winkelart'];
+  if (stufe >= 1) arten.push('koordinaten');
+  if (stufe >= 2) arten.push('umfang','winkelmass');
+  if (stufe >= 3) arten.push('koordinaten','winkelmass');
+  return { stufe:stufe, arten:arten };
+}
+function maGeoAufgabe(runde) {
+  const p = maGeoPlan(runde); const a = maWahl(p.arten);
+  if (a === 'winkelart') return geoWinkelart(p.stufe);
+  if (a === 'winkelmass') return geoWinkelSchaetzen(p.stufe);
+  if (a === 'koordinaten') return geoKoordinaten(p.stufe);
+  if (a === 'umfang') return geoUmfangVieleck(p.stufe);
+  return geoBegriff();
+}
+function maGeoHilfe(offen) {
+  return '<details class="ma-leiter"' + (offen ? ' open' : '') + '><summary>Merkhilfe</summary>' +
+    '<table class="ma-leiter-tabelle">' +
+    '<tr><td>spitz</td><td>kleiner als 90\u00b0</td></tr>' +
+    '<tr><td>recht</td><td>genau 90\u00b0</td></tr>' +
+    '<tr><td>stumpf</td><td>zwischen 90\u00b0 und 180\u00b0</td></tr>' +
+    '<tr><td>gestreckt</td><td>genau 180\u00b0</td></tr>' +
+    '<tr><td>P(x|y)</td><td>erst rechts, dann hoch</td></tr></table>' +
+    '<div class="ma-leiter-hinweis">senkrecht \u22a5 · parallel \u2225</div></details>';
 }
 /* ---------- Fach-Umschalter ---------- */
 const MA_DAUER_SEC = 300;
@@ -6537,11 +7396,12 @@ function renderWerkstatt() {
 /* ---------- Zahlenfeld ----------
    Ersetzt die iPad-Tastatur vollstaendig: grosse Tasten, keine
    Autokorrektur, kein Keyboard, das die Aufgabe verdeckt. */
-function maZahlenfeld(mitKomma, mitDoppelpunkt) {
+function maZahlenfeld(mitKomma, mitDoppelpunkt, mitMinus) {
   const reihen = [['7','8','9'],['4','5','6'],['1','2','3']];
   const letzte = ['0'];
   if (mitKomma) letzte.push(',');
   if (mitDoppelpunkt) letzte.push(':');
+  if (mitMinus) letzte.push('\u2212');
   letzte.push('\u232b');
   return `<div class='ma-pad'>
     ${reihen.map(r => `<div class='ma-pad-reihe'>${r.map(z => `<button class='ma-taste' data-z='${z}'>${z}</button>`).join('')}</div>`).join('')}
@@ -17790,7 +18650,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v88';
+const APP_VERSION = 'v89';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
