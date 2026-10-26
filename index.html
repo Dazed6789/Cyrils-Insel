@@ -220,6 +220,23 @@ button{font-family:var(--font-main); letter-spacing:var(--letter-spacing-base); 
 .ma-blatt-knopf{padding:7px 12px;font-size:.88rem;border:1px solid #D8C3A5;border-radius:9px;background:#FFF;cursor:pointer;}
 .ma-blatt-knopf.an{background:#C8A063;border-color:#C8A063;color:#2A1E07;font-weight:700;}
 .ma-blatt-flaeche{width:100%;height:220px;border:2px dashed #D8C3A5;border-radius:12px;background:#FFFDF8;touch-action:none;display:block;}
+.sa-marke{display:inline-block;font-size:.78rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:4px 10px;border-radius:999px;margin-bottom:8px;}
+.sa-marke.zusammen{background:#FFF1D6;color:#8A6A12;}
+.sa-marke.allein{background:#E6F2E9;color:#2F7A4A;}
+.sa-schrittleiste{display:flex;gap:6px;margin-bottom:10px;}
+.sa-punkt{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;background:#EFEAE1;color:#9A9A9A;}
+.sa-punkt.jetzt{background:#C8A063;color:#2A1E07;}
+.sa-punkt.fertig{background:#8CC9A0;color:#143A22;}
+.sa-text{display:flex;flex-direction:column;gap:6px;margin:4px 0 10px;}
+.sa-satz{text-align:left;font-size:1.02rem;line-height:1.4;padding:9px 11px;border:2px solid #E4DCCF;border-radius:10px;background:#FFF;cursor:pointer;font-family:inherit;color:inherit;}
+.sa-satz.still{border-color:transparent;background:transparent;padding:3px 0;cursor:default;}
+.sa-satz.still.blass{opacity:.42;}
+.sa-satz.an{border-color:#C8A063;background:#FFF8E6;}
+.sa-satz.richtig{border-color:#4CAF50;background:#EDF8EE;}
+.sa-satz.unnoetig{opacity:.45;}
+.sa-frage{font-size:1.1rem;font-weight:700;margin:6px 0 10px;}
+.sa-rechnung{font-size:1.25rem;font-weight:700;text-align:center;color:#8A6A12;margin-bottom:8px;}
+.sa-vorlesen{margin-top:10px;padding:8px 14px;font-size:.9rem;border:1px solid #D8C3A5;border-radius:9px;background:#FFF;cursor:pointer;}
 .ma-klein{display:block;font-size:.85rem;font-weight:600;color:#8A8A8A;margin-top:4px;}
 .da-tabelle{margin:0 auto;border-collapse:collapse;font-size:1rem;}
 .da-tabelle td{padding:4px 10px;border-bottom:1px solid #EEE;text-align:left;}
@@ -5788,7 +5805,7 @@ const MA_BEREICHE = [
   { id: 'groessen', lb: 'Kapitel 4 · S. 79', titel: 'Größen',
     text: 'Geld, Länge, Masse, Volumen, Zeit – in Buchreihenfolge', fertig: true },
   { id: 'sachaufgaben', lb: 'Strategie · S. 71', titel: 'Sachaufgaben lösen',
-    text: 'Text verstehen, dann rechnen – mit Vorlesen', fertig: false },
+    text: 'In Zweierblöcken: erst zusammen, dann allein', fertig: true },
   { id: 'rechnen', lb: 'Kapitel 3 · S. 51', titel: 'Rechnen mit natürlichen Zahlen',
     text: 'Grundrechenarten, Rechenvorteile, schriftlich rechnen', fertig: true },
   { id: 'zahlen', lb: 'Kapitel 2 · S. 29', titel: 'Die natürlichen Zahlen',
@@ -6290,6 +6307,516 @@ function maGrAufgabe(runde) {
    Bewusst dasselbe Format wie Vokabeltest und Grammatik-Trainer. Er kennt
    die Uhr oben links, den Stand daneben und den Schluss-Knopf schon - eine
    neue Bedienlogik pro Fach waere unnoetiger Ballast. */
+/* =========================================================================
+   v90: Sachaufgaben. Joules groesster Schwachpunkt und der Teil, an dem bei
+   LRS die meisten Mathenoten haengen - nicht weil gerechnet werden muss,
+   sondern weil zuerst gelesen werden muss.
+
+   Joules Vorgabe: immer ZWEIERBLOECKE. Erst eine Aufgabe, bei der die
+   Zerlegung in Einzelschritte vorgemacht wird (mit Abfragen dazwischen),
+   dann eine sehr aehnliche, aber nicht gleiche zum Festigen.
+
+   Das ist genau die Strategie aus ihrem eigenen Buch (Lernstufen 5, S. 71,
+   'Strategie: Sachaufgaben loesen') - fuenf Schritte, und ausdruecklich mit
+   dem Hinweis 'Manchmal sind nicht alle Angaben im Text notwendig'. Ich
+   habe die Schrittnamen woertlich uebernommen, damit App und Buch dieselbe
+   Sprache sprechen.
+
+   Lernmechanik dahinter: ein durchgerechnetes Beispiel direkt gefolgt von
+   einer strukturgleichen Aufgabe zum Selbstloesen. Die Entlastung beim
+   ersten Durchgang ist das, was das Arbeitsgedaechtnis frei macht - und das
+   ist bei LRS der Engpass.
+   ========================================================================= */
+
+const SA_SCHRITTE = ['Text genau lesen', 'Überblick verschaffen', 'Rechnung aufstellen', 'Ausrechnen', 'Antwortsatz'];
+
+/* Die ueberfluessige Angabe muss trotzdem glaubwuerdig sein. In der ersten
+   Fassung zog sie ihre Zahl aus demselben Topf wie alles andere - dabei kam
+   'Der Laden hat ab 49 Uhr geoeffnet' heraus. Eine unsinnige Angabe verraet
+   sich selbst als unwichtig, und genau das soll die Uebung ja nicht. Jede
+   Stoerangabe bringt deshalb ihren eigenen Wertebereich mit. */
+const SA_STOER = {
+  uhrzeit:   () => { const h = 7 + maRnd(12); return { zahl:h, satz:'Der Laden hat ab ' + h + ' Uhr geöffnet.' }; },
+  filmdauer: () => { const m = maWahl([85,90,95,100,105,110,120]); return { zahl:m, satz:'Der Film dauert ' + m + ' Minuten.' }; },
+  alter:     () => { const j = 12 + maRnd(60); return { zahl:j, satz:'Die Bäckerei gibt es seit ' + j + ' Jahren.' }; },
+  beckenlaenge: () => { const m = maWahl([25,50]); return { zahl:m, satz:'Das Becken ist ' + m + ' m lang.' }; },
+  kinder:    () => { const n = 14 + maRnd(16); return { zahl:n, satz:n + ' Kinder stehen am Rand.' }; },
+  schueler:  () => { const n = 40 + maRnd(160); return { zahl:n, satz:'In der Pause sind ' + n + ' Schüler draußen.' }; },
+  baeume:    () => { const n = 3 + maRnd(12); return { zahl:n, satz:'Im Garten stehen ' + n + ' Obstbäume.' }; },
+  wasser:    () => { const g = 22 + maRnd(8); return { zahl:g, satz:'Das Wasser ist ' + g + ' Grad warm.' }; },
+  firmen:    () => { const n = 2 + maRnd(6); return { zahl:n, satz:'Die Lieferung kam von ' + n + ' verschiedenen Firmen.' }; },
+  geschaefte:() => { const n = 2 + maRnd(6); return { zahl:n, satz:'Die Bestellung ging an ' + n + ' verschiedene Geschäfte.' }; },
+  tuete:     () => { const c = 80 + maRnd(200); return { zahl:c, satz:'Die Tüte hat ' + c + ' ct gekostet.' }; },
+  ernte:     () => { const d = 2 + maRnd(5); return { zahl:d, satz:'Die Ernte dauerte ' + d + ' Tage.' }; },
+  album:     () => { const s = 20 + maRnd(40); return { zahl:s, satz:'Das Album hat ' + s + ' Seiten.' }; },
+  feier:     () => { const h = 14 + maRnd(5); return { zahl:h, satz:'Die Feier beginnt um ' + h + ' Uhr.' }; },
+  handwerker:() => { const d = 2 + maRnd(5); return { zahl:d, satz:'Der Handwerker braucht ' + d + ' Tage.' }; }
+};
+
+/* Jede Struktur liefert Kulissen (Kontexte) und baut daraus einen Fall.
+   Zwei Faelle derselben Struktur mit verschiedenen Kulissen ergeben den
+   Zweierblock: gleicher Rechenweg, anderer Text. */
+const SA_STRUKTUREN = [
+  {
+    id: 'runden',
+    name: 'Umfang mal Runden',
+    kulissen: [
+      { ort:'Das Fußballfeld', tun:'laufen', stoer: SA_STOER.kinder },
+      { ort:'Der Schulhof', tun:'laufen', stoer: SA_STOER.schueler },
+      { ort:'Der Garten', tun:'rennen', stoer: SA_STOER.baeume },
+      { ort:'Das Schwimmbecken', tun:'schwimmen', stoer: SA_STOER.wasser }
+    ],
+    bau: function(stufe) {
+      const k = maWahl(this.kulissen);
+      const l = (stufe<=1 ? 20+maRnd(4)*5 : 25+maRnd(8)*5);
+      const b = (stufe<=1 ? 10+maRnd(3)*5 : 10+maRnd(6)*5);
+      const runden = 2 + maRnd(stufe<=1 ? 2 : 4);
+      const st = k.stoer();
+      const umfang = 2*l + 2*b;
+      const antwort = umfang * runden;
+      return {
+        struktur:'runden',
+        text: [
+          { s: k.ort + ' ist ' + l + ' m lang.', w:true },
+          { s: 'Es ist ' + b + ' m breit.', w:true },
+          { s: st.satz, w:false },
+          { s: 'Jeder Läufer muss ' + runden + ' Runden ' + (k.tun==='schwimmen'?'schwimmen':'laufen') + '.', w:true }
+        ],
+        frage: 'Wie viele Meter sind das für einen Läufer?',
+        gesucht: 'die Meter für eine Person',
+        gesuchtOpt: ['die Meter für alle zusammen', 'die Fläche des Feldes', 'die Anzahl der Läufer'],
+        rechnung: '(2 · ' + l + ' + 2 · ' + b + ') · ' + runden,
+        rechnungOpt: [ l + ' · ' + b + ' · ' + runden, '(' + l + ' + ' + b + ') · ' + runden, '2 · ' + l + ' + 2 · ' + b ],
+        antwort: antwort, einheit:'m',
+        satz: 'Jeder läuft ' + antwort + ' m.',
+        satzOpt: [ 'Jeder läuft ' + umfang + ' m.', 'Zusammen sind es ' + antwort + ' m.', 'Das Feld ist ' + antwort + ' m² groß.' ],
+        tipp: 'Einmal rundherum sind 2 · Länge + 2 · Breite = ' + umfang + ' m. Das mal ' + runden + ' Runden.',
+        stoer: 'Die Zahl ' + st.zahl + ' wird nicht gebraucht.'
+      };
+    }
+  },
+  {
+    id: 'prostueck',
+    name: 'Anzahl mal Preis',
+    kulissen: [
+      { ding:'Hefte', stueck:'Heft', wo:'im Schreibwarenladen', stoer: SA_STOER.uhrzeit },
+      { ding:'Kinokarten', stueck:'Karte', wo:'an der Kasse', stoer: SA_STOER.filmdauer },
+      { ding:'Brötchen', stueck:'Brötchen', wo:'beim Bäcker', stoer: SA_STOER.alter },
+      { ding:'Eintrittskarten', stueck:'Karte', wo:'im Schwimmbad', stoer: SA_STOER.beckenlaenge }
+    ],
+    bau: function(stufe) {
+      const k = maWahl(this.kulissen);
+      const anzahl = 3 + maRnd(stufe<=1 ? 7 : 20);
+      const preis = (stufe<=1 ? maWahl([50,60,70,80,90]) : maWahl([120,150,180,220,250,320]));
+      const st = k.stoer();
+      const antwort = anzahl * preis;
+      return {
+        struktur:'prostueck',
+        text: [
+          { s: 'Lena kauft ' + anzahl + ' ' + k.ding + ' ' + k.wo + '.', w:true },
+          { s: (k.stueck==='Karte' ? 'Eine Karte kostet ' : 'Ein ' + k.stueck + ' kostet ') + preis + ' ct.', w:true },
+          { s: st.satz, w:false }
+        ],
+        frage: 'Wie viel bezahlt Lena insgesamt?',
+        gesucht: 'der Gesamtpreis',
+        gesuchtOpt: ['der Preis für ein Stück', 'die Anzahl der Stücke', 'das Wechselgeld'],
+        rechnung: anzahl + ' · ' + preis,
+        rechnungOpt: [ anzahl + ' + ' + preis, preis + ' : ' + anzahl, preis + ' \u2212 ' + anzahl ],
+        antwort: antwort, einheit:'ct',
+        satz: 'Lena bezahlt ' + antwort + ' ct.',
+        satzOpt: [ 'Lena bezahlt ' + preis + ' ct.', 'Lena bekommt ' + antwort + ' ct zurück.', 'Lena kauft ' + antwort + ' Stück.' ],
+        tipp: 'Jedes Stück kostet gleich viel. Also Anzahl mal Preis: ' + anzahl + ' · ' + preis + '.',
+        stoer: 'Die Zahl ' + st.zahl + ' wird nicht gebraucht.'
+      };
+    }
+  },
+  {
+    id: 'rest',
+    name: 'Vorrat minus abgeholt',
+    kulissen: [
+      { ding:'Skischuhe', ort:'im Lager', weg:'abgeholt' },
+      { ding:'Bücher', ort:'in der Bücherei', weg:'ausgeliehen' },
+      { ding:'Stühle', ort:'in der Aula', weg:'weggeräumt' },
+      { ding:'Flaschen', ort:'im Getränkemarkt', weg:'verkauft' }
+    ],
+    bau: function(stufe) {
+      const k = maWahl(this.kulissen);
+      const vorrat = (stufe<=1 ? 60+maRnd(80) : 200+maRnd(600));
+      const weg = 10 + maRnd(Math.floor(vorrat*0.6));
+      const st = SA_STOER.firmen();
+      const antwort = vorrat - weg;
+      return {
+        struktur:'rest',
+        text: [
+          { s: 'Es sind ' + vorrat + ' ' + k.ding + ' ' + k.ort + '.', w:true },
+          { s: 'Davon werden ' + weg + ' ' + k.weg + '.', w:true },
+          { s: st.satz, w:false }
+        ],
+        frage: 'Wie viele ' + k.ding + ' sind noch da?',
+        gesucht: 'die übrigen ' + k.ding,
+        gesuchtOpt: ['alle ' + k.ding + ' zusammen', 'die Anzahl der Firmen', 'die ' + k.weg + 'en ' + k.ding],
+        rechnung: vorrat + ' \u2212 ' + weg,
+        rechnungOpt: [ vorrat + ' + ' + weg, vorrat + ' : ' + weg, weg + ' \u2212 ' + vorrat ],
+        antwort: antwort, einheit:'Stück',
+        satz: 'Es sind noch ' + antwort + ' ' + k.ding + ' da.',
+        satzOpt: [ 'Es sind noch ' + weg + ' ' + k.ding + ' da.', 'Es wurden ' + antwort + ' ' + k.ding + ' ' + k.weg + '.', 'Es sind ' + vorrat + ' ' + k.ding + ' übrig.' ],
+        tipp: '\u201e' + k.weg + '\u201c heißt: sie gehen weg. Das ist eine Subtraktion.',
+        stoer: 'Die Zahl ' + st.zahl + ' wird nicht gebraucht.'
+      };
+    }
+  },
+  {
+    id: 'aufteilen',
+    name: 'Gerecht aufteilen',
+    kulissen: [
+      { ding:'Bonbons', wer:'Kinder', stoer: SA_STOER.tuete },
+      { ding:'Äpfel', wer:'Körbe', stoer: SA_STOER.ernte },
+      { ding:'Sticker', wer:'Freunde', stoer: SA_STOER.album },
+      { ding:'Luftballons', wer:'Tische', stoer: SA_STOER.feier }
+    ],
+    bau: function(stufe) {
+      const k = maWahl(this.kulissen);
+      const teiler = 3 + maRnd(stufe<=1 ? 6 : 10);
+      const proStueck = 3 + maRnd(stufe<=1 ? 10 : 30);
+      const gesamt = teiler * proStueck;
+      const st = k.stoer();
+      return {
+        struktur:'aufteilen',
+        text: [
+          { s: 'Es gibt ' + gesamt + ' ' + k.ding + '.', w:true },
+          { s: 'Sie werden gerecht auf ' + teiler + ' ' + k.wer + ' verteilt.', w:true },
+          { s: st.satz, w:false }
+        ],
+        frage: 'Wie viele ' + k.ding + ' bekommt jede(r)?',
+        gesucht: 'die Anzahl pro ' + k.wer.replace(/e$|er$/,''),
+        gesuchtOpt: ['alle ' + k.ding + ' zusammen', 'die Anzahl der ' + k.wer, 'der Rest'],
+        rechnung: gesamt + ' : ' + teiler,
+        rechnungOpt: [ gesamt + ' \u00b7 ' + teiler, gesamt + ' \u2212 ' + teiler, teiler + ' : ' + gesamt ],
+        antwort: proStueck, einheit:'Stück',
+        satz: 'Jede(r) bekommt ' + proStueck + ' ' + k.ding + '.',
+        satzOpt: [ 'Jede(r) bekommt ' + teiler + ' ' + k.ding + '.', 'Zusammen sind es ' + proStueck + ' ' + k.ding + '.', 'Es bleiben ' + proStueck + ' ' + k.ding + ' übrig.' ],
+        tipp: '\u201egerecht verteilt\u201c heißt teilen: ' + gesamt + ' : ' + teiler + '.',
+        stoer: 'Die Zahl ' + st.zahl + ' wird nicht gebraucht.'
+      };
+    }
+  },
+  {
+    id: 'flaeche',
+    name: 'Fläche mal Menge',
+    kulissen: [
+      { raum:'Das Zimmer', belag:'Fliesen', pro:'Fliesen pro m²' },
+      { raum:'Die Terrasse', belag:'Platten', pro:'Platten pro m²' },
+      { raum:'Der Flur', belag:'Fliesen', pro:'Fliesen pro m²' }
+    ],
+    bau: function(stufe) {
+      const k = maWahl(this.kulissen);
+      const l = 3 + maRnd(stufe<=1 ? 5 : 9), b = 2 + maRnd(stufe<=1 ? 4 : 7);
+      const pro = maWahl([4, 9, 16, 25]);
+      const st = SA_STOER.handwerker();
+      const flaeche = l*b;
+      return {
+        struktur:'flaeche',
+        text: [
+          { s: k.raum + ' ist ' + l + ' m lang und ' + b + ' m breit.', w:true },
+          { s: 'Auf einen Quadratmeter passen ' + pro + ' ' + k.belag + '.', w:true },
+          { s: st.satz, w:false }
+        ],
+        frage: 'Wie viele ' + k.belag + ' werden gebraucht?',
+        gesucht: 'die Anzahl der ' + k.belag,
+        gesuchtOpt: ['die Fläche in m²', 'der Umfang des Raums', 'die Anzahl der Tage'],
+        rechnung: l + ' · ' + b + ' · ' + pro,
+        rechnungOpt: [ '(2 · ' + l + ' + 2 · ' + b + ') · ' + pro, l + ' · ' + b + ' : ' + pro, l + ' + ' + b + ' + ' + pro ],
+        antwort: flaeche * pro, einheit:'Stück',
+        satz: 'Es werden ' + (flaeche*pro) + ' ' + k.belag + ' gebraucht.',
+        satzOpt: [ 'Es werden ' + flaeche + ' ' + k.belag + ' gebraucht.', 'Der Raum ist ' + (flaeche*pro) + ' m² groß.', 'Es werden ' + pro + ' ' + k.belag + ' gebraucht.' ],
+        tipp: 'Erst die Fläche: ' + l + ' · ' + b + ' = ' + flaeche + ' m². Dann mal ' + pro + ' pro Quadratmeter.',
+        stoer: 'Die Zahl ' + st.zahl + ' wird nicht gebraucht.'
+      };
+    }
+  },
+  {
+    id: 'mehrschritt',
+    name: 'Zwei Schritte',
+    kulissen: [
+      { ding:'Skischuhe', firma:'Die Firma Bergmaier', ort:'im Lager' },
+      { ding:'Trikots', firma:'Der Sportverein', ort:'im Schrank' },
+      { ding:'Brote', firma:'Die Bäckerei', ort:'im Regal' }
+    ],
+    bau: function(stufe) {
+      const k = maWahl(this.kulissen);
+      const start = 80 + maRnd(200);
+      const weg = 10 + maRnd(60);
+      const proTag = 10 + maRnd(40);
+      const tage = 3 + maRnd(4);
+      const st = SA_STOER.geschaefte();
+      const antwort = start - weg + proTag*tage;
+      return {
+        struktur:'mehrschritt',
+        text: [
+          { s: 'Es sind ' + start + ' ' + k.ding + ' ' + k.ort + '.', w:true },
+          { s: 'Davon werden ' + weg + ' abgeholt.', w:true },
+          { s: st.satz, w:false },
+          { s: 'Pro Tag kommen ' + proTag + ' neue dazu, ' + tage + ' Tage lang.', w:true }
+        ],
+        frage: 'Wie viele ' + k.ding + ' sind am Ende da?',
+        gesucht: 'die Anzahl am Ende',
+        gesuchtOpt: ['die Anzahl am Anfang', 'die abgeholten ' + k.ding, 'die Anzahl der Geschäfte'],
+        rechnung: start + ' \u2212 ' + weg + ' + ' + proTag + ' · ' + tage,
+        rechnungOpt: [ start + ' + ' + weg + ' + ' + proTag + ' · ' + tage, '(' + start + ' \u2212 ' + weg + ') · ' + tage, start + ' \u2212 ' + weg + ' \u2212 ' + proTag ],
+        antwort: antwort, einheit:'Stück',
+        satz: 'Am Ende sind ' + antwort + ' ' + k.ding + ' da.',
+        satzOpt: [ 'Am Ende sind ' + (start-weg) + ' ' + k.ding + ' da.', 'Es wurden ' + antwort + ' ' + k.ding + ' hergestellt.', 'Am Anfang waren ' + antwort + ' ' + k.ding + ' da.' ],
+        tipp: 'Zwei Schritte: erst abziehen (' + start + ' \u2212 ' + weg + ' = ' + (start-weg) + '), dann dazuzählen (' + proTag + ' · ' + tage + ' = ' + (proTag*tage) + '). Punkt vor Strich hilft dabei.',
+        stoer: 'Die Zahl ' + st.zahl + ' wird nicht gebraucht.'
+      };
+    }
+  }
+];
+function saStruktur(id) { return SA_STRUKTUREN.filter(s => s.id === id)[0]; }
+/* Die Ablenker werden aus denselben Zahlen gebaut wie die richtige Antwort.
+   Bei ungluecklichen Zufallswerten faellt einer davon mit ihr zusammen (z. B.
+   wenn der Rest genauso gross ist wie das Abgeholte) - dann gaebe es zwei
+   richtige Knoepfe. Gemessen betraf das 1,3 % der Faelle. Statt jede Struktur
+   einzeln abzusichern, wird hier zentral entdoppelt: gleiche Beschriftung
+   fliegt raus, die richtige bleibt immer drin. */
+function saOptionen(richtig, alternativen) {
+  const gesehen = {};
+  const liste = [{ t: richtig, ok: true }];
+  gesehen[richtig] = true;
+  (alternativen || []).forEach(a => {
+    if (gesehen[a]) return;
+    gesehen[a] = true;
+    liste.push({ t: a, ok: false });
+  });
+  return maMischen(liste);
+}
+function maSaPlan(runde) {
+  const stufe = Math.min(3, Math.max(1, Math.floor(runde/2)+1));
+  const offen = ['runden','prostueck','rest','aufteilen'];
+  if (stufe >= 2) offen.push('flaeche');
+  if (stufe >= 3) offen.push('mehrschritt');
+  return { stufe: stufe, arten: offen };
+}
+/* ---------- Die Lektion: Zweierbloecke ----------
+   Aufgabe 1 wird in den fuenf Buchschritten zerlegt, Aufgabe 2 hat
+   dieselbe Struktur mit anderer Kulisse und wird allein geloest. Geht
+   Aufgabe 2 daneben, klappt die Fuehrung wieder auf - kein Vorfuehren des
+   Scheiterns, sondern zurueck in die Hilfe. */
+function maSaLektion() {
+  pauseBuilder();
+  session = { special:'mathe', history:[], current:null, errorFree:true };
+  const runde = (progress.maRunden && progress.maRunden.sachaufgaben) || 0;
+  const plan = maSaPlan(runde);
+  const ende = Date.now() + MA_DAUER_SEC * 1000;
+  let gesamt = 0, treffer = 0;
+  const proTyp = {}, fehler = [];
+  let fall = null, schritt = 0, gefuehrt = true, ersterVersuchOk = true, markiert = [], eingabe = '';
+  let blockStruktur = null, blockTeil = 0;
+
+  function restSek() { return Math.max(0, Math.round((ende - Date.now())/1000)); }
+  function zeitText() { const s = restSek(); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+  if (maTimerId) clearInterval(maTimerId);
+  maTimerId = setInterval(() => {
+    const el = document.getElementById('maZeit');
+    if (el) { el.textContent = zeitText(); el.classList.toggle('knapp', restSek() <= 30); }
+    if (restSek() <= 0) { clearInterval(maTimerId); maTimerId = null; beenden(); }
+  }, 1000);
+  function beenden() {
+    if (maTimerId) { clearInterval(maTimerId); maTimerId = null; }
+    session = null;
+    maBilanz('sachaufgaben', runde, gesamt, treffer, proTyp, fehler);
+  }
+
+  function naechsterFall() {
+    if (blockTeil === 0) {
+      blockStruktur = maWahl(plan.arten);
+      gefuehrt = true;
+    } else {
+      gefuehrt = false;
+    }
+    fall = saStruktur(blockStruktur).bau(plan.stufe);
+    schritt = gefuehrt ? 0 : 3;
+    ersterVersuchOk = true; markiert = []; eingabe = '';
+    zeichne();
+  }
+
+  function fallFertig(ok) {
+    gesamt++;
+    if (ok) treffer++;
+    const ty = fall.struktur;
+    proTyp[ty] = proTyp[ty] || { n:0, ok:0 };
+    proTyp[ty].n++; if (ok) proTyp[ty].ok++;
+    maReview('ma_sa_' + fall.struktur, ok);
+    if (!ok) fehler.push({ satz: fall.satz, erklaerung: fall.tipp });
+    blockTeil = blockTeil === 0 ? 1 : 0;
+    if (restSek() <= 0) { setTimeout(beenden, 1400); return; }
+    setTimeout(naechsterFall, ok ? 1200 : 2600);
+  }
+
+  function textHtml(markierbar) {
+    return fall.text.map((z, i) => markierbar
+      ? `<button class='sa-satz ${markiert.indexOf(i) >= 0 ? 'an' : ''}' data-i='${i}'>${z.s}</button>`
+      : `<div class='sa-satz still ${(!gefuehrt || schritt > 0) && !z.w ? 'blass' : ''}'>${z.s}</div>`).join('');
+  }
+
+  function kopf() {
+    return `${renderMissionHeader()}
+      <div class='session-shell'>
+        <div class='vt-leiste'>
+          <span class='vt-uhr' id='maZeit'>${zeitText()}</span>
+          <span class='vt-stand'>${treffer} von ${gesamt} richtig</span>
+          <button class='secondary-btn vt-stop' id='maStop'>Schluss</button>
+        </div>`;
+  }
+
+  function zeichne() {
+    const istErste = blockTeil === 0;
+    const marke = gefuehrt
+      ? `<div class='sa-schrittleiste'>${SA_SCHRITTE.map((s,i) => `<span class='sa-punkt ${i < schritt ? 'fertig' : i === schritt ? 'jetzt' : ''}'>${i+1}</span>`).join('')}</div>`
+      : '';
+    let block = '';
+    if (schritt === 0) {
+      block = `<div class='vt-anweisung'>${SA_SCHRITTE[0]}: Tippe die Sätze an, die du zum Rechnen brauchst.</div>
+        <div class='sa-text'>${textHtml(true)}</div>
+        <div class='sa-frage'>${fall.frage}</div>
+        <button class='primary-btn' id='saWeiter'>Fertig</button>`;
+    } else if (schritt === 1) {
+      const opts = saOptionen(fall.gesucht, fall.gesuchtOpt);
+      fall._gesuchtOpts = opts;
+      block = `<div class='vt-anweisung'>${SA_SCHRITTE[1]}: Was ist gesucht?</div>
+        <div class='sa-text'>${textHtml(false)}</div>
+        <div class='sa-frage'>${fall.frage}</div>
+        <div class='options single-col' id='saOpts'>${opts.map((o,i) => `<button class='opt-btn' data-i='${i}'>${o.t}</button>`).join('')}</div>`;
+    } else if (schritt === 2) {
+      const opts = saOptionen(fall.rechnung, fall.rechnungOpt);
+      fall._rechnungOpts = opts;
+      block = `<div class='vt-anweisung'>${SA_SCHRITTE[2]}: Welche Rechnung passt?</div>
+        <div class='sa-text'>${textHtml(false)}</div>
+        <div class='sa-frage'>${fall.frage}</div>
+        <div class='options single-col' id='saOpts'>${opts.map((o,i) => `<button class='opt-btn' data-i='${i}'>${o.t}</button>`).join('')}</div>`;
+    } else if (schritt === 3) {
+      block = `<div class='vt-anweisung'>${gefuehrt ? SA_SCHRITTE[3] + ': Rechne aus.' : 'Löse die Aufgabe.'}</div>
+        <div class='sa-text'>${textHtml(false)}</div>
+        <div class='sa-frage'>${fall.frage}</div>
+        ${gefuehrt ? `<div class='sa-rechnung'>${fall.rechnung}</div>` : ''}
+        <div class='ma-anzeige' id='maAnzeige'><span id='maEingabe'></span><span class='ma-einheit'>${fall.einheit}</span></div>
+        ${maZahlenfeld(false, false, false)}`;
+    } else {
+      const opts = saOptionen(fall.satz, fall.satzOpt);
+      fall._satzOpts = opts;
+      block = `<div class='vt-anweisung'>${SA_SCHRITTE[4]}: Welcher Satz antwortet auf die Frage?</div>
+        <div class='sa-frage'>${fall.frage}</div>
+        <div class='options single-col' id='saOpts'>${opts.map((o,i) => `<button class='opt-btn' data-i='${i}'>${o.t}</button>`).join('')}</div>`;
+    }
+    app.innerHTML = kopf() + `
+        <div class='card vt-karte'>
+          <div class='q-topic'>Sachaufgaben · Stufe ${plan.stufe}</div>
+          <div class='sa-marke ${istErste ? 'zusammen' : 'allein'}'>${istErste ? 'Aufgabe 1 – wir machen sie zusammen' : 'Aufgabe 2 – jetzt du allein'}</div>
+          ${marke}
+          ${block}
+          <div class='vt-rueckmeldung' id='maFeedback'></div>
+          <button class='sa-vorlesen' id='saVorlesen'>Vorlesen</button>
+          ${maNebenblatt()}
+        </div>
+      </div>`;
+    document.getElementById('maStop').onclick = beenden;
+    const blatt = app.querySelector('.ma-blatt');
+    if (blatt) blatt.addEventListener('toggle', () => { if (blatt.open) maBlattStarten(); });
+    const vor = document.getElementById('saVorlesen');
+    if (vor) vor.onclick = () => { try { speakDE(fall.text.map(z => z.s).join(' ') + ' ' + fall.frage); } catch (e) {} };
+    binden();
+  }
+
+  function rueckmeldung(ok, text) {
+    const f = document.getElementById('maFeedback');
+    if (!f) return;
+    f.className = 'vt-rueckmeldung ' + (ok ? 'gut' : 'schlecht');
+    f.innerHTML = ok ? `<span class='ma-gut'>${text || 'Richtig.'}</span>` : `<span class='vt-zusatz'>${text || ''}</span>`;
+  }
+
+  function binden() {
+    if (schritt === 0) {
+      app.querySelectorAll('.sa-satz[data-i]').forEach(b => b.onclick = () => {
+        const i = +b.dataset.i, p = markiert.indexOf(i);
+        if (p >= 0) markiert.splice(p, 1); else markiert.push(i);
+        b.classList.toggle('an');
+      });
+      document.getElementById('saWeiter').onclick = () => {
+        const soll = fall.text.map((z,i) => z.w ? i : -1).filter(i => i >= 0);
+        const ok = soll.length === markiert.length && soll.every(i => markiert.indexOf(i) >= 0);
+        if (!ok) ersterVersuchOk = false;
+        app.querySelectorAll('.sa-satz[data-i]').forEach(b => {
+          const w = fall.text[+b.dataset.i].w;
+          b.classList.add(w ? 'richtig' : 'unnoetig');
+          b.disabled = true;
+        });
+        rueckmeldung(ok, ok ? 'Genau diese Angaben brauchst du.' : fall.stoer + ' Die hellen Sätze brauchst du nicht.');
+        document.getElementById('saWeiter').disabled = true;
+        setTimeout(() => { schritt = 1; zeichne(); }, ok ? 1100 : 2400);
+      };
+      return;
+    }
+    if (schritt === 3) {
+      const feld = document.getElementById('maEingabe');
+      const zeigen = () => { feld.textContent = eingabe || '\u2013'; };
+      zeigen();
+      app.querySelectorAll('.ma-taste').forEach(b => b.onclick = () => {
+        const z = b.dataset.z;
+        if (z === '\u232b') eingabe = eingabe.slice(0, -1);
+        else if (eingabe.length < 10) eingabe += z;
+        zeigen();
+      });
+      document.getElementById('maOk').onclick = () => {
+        if (eingabe === '') return;
+        const ok = maZahlPasst(eingabe, fall.antwort);
+        app.querySelectorAll('.ma-taste, .ma-ok').forEach(x => x.disabled = true);
+        document.getElementById('maAnzeige').classList.add(ok ? 'gut' : 'schlecht');
+        if (!ok) ersterVersuchOk = false;
+        if (ok) {
+          rueckmeldung(true, 'Stimmt.');
+          setTimeout(() => { schritt = 4; zeichne(); }, 900);
+        } else if (!gefuehrt) {
+          /* Aufgabe 2 daneben: zurueck in die Fuehrung statt nur die
+             Loesung hinzuknallen. */
+          rueckmeldung(false, 'Nicht ganz – wir gehen sie zusammen durch.');
+          setTimeout(() => { gefuehrt = true; schritt = 0; markiert = []; eingabe = ''; zeichne(); }, 2000);
+        } else {
+          rueckmeldung(false, fall.rechnung + ' = ' + fall.antwort + ' ' + fall.einheit + '. ' + fall.tipp);
+          setTimeout(() => { schritt = 4; zeichne(); }, 2800);
+        }
+      };
+      return;
+    }
+    const opts = schritt === 1 ? fall._gesuchtOpts : schritt === 2 ? fall._rechnungOpts : fall._satzOpts;
+    app.querySelectorAll('#saOpts .opt-btn').forEach(b => b.onclick = () => {
+      if (b.disabled) return;
+      const o = opts[+b.dataset.i];
+      if (o.ok) {
+        b.classList.add('correct');
+        app.querySelectorAll('#saOpts .opt-btn').forEach(x => x.disabled = true);
+        rueckmeldung(true, schritt === 2 ? fall.tipp : 'Richtig.');
+        if (schritt === 4) { setTimeout(() => fallFertig(ersterVersuchOk), 1300); }
+        else setTimeout(() => { schritt = schritt + 1; zeichne(); }, schritt === 2 ? 2200 : 1000);
+      } else {
+        ersterVersuchOk = false;
+        b.classList.add('retry'); b.disabled = true;
+        rueckmeldung(false, schritt === 1 ? 'Lies die Frage noch einmal: ' + fall.frage : schritt === 2 ? 'Schau auf die Signalwörter im Text.' : 'Der Satz muss genau zur Frage passen.');
+      }
+    });
+  }
+
+  naechsterFall();
+}
+function maSaHilfe(offen) {
+  return '<details class="ma-leiter"' + (offen ? ' open' : '') + '><summary>So löst man eine Sachaufgabe</summary>' +
+    '<table class="ma-leiter-tabelle">' +
+    '<tr><td>1.</td><td>Text genau lesen – was ist wichtig?</td></tr>' +
+    '<tr><td>2.</td><td>Überblick: Was ist gesucht? Was ist gegeben?</td></tr>' +
+    '<tr><td>3.</td><td>Rechnung aufstellen und lösen</td></tr>' +
+    '<tr><td>4.</td><td>Ergebnis prüfen (Überschlag)</td></tr>' +
+    '<tr><td>5.</td><td>Antwortsatz schreiben</td></tr></table>' +
+    '<div class="ma-leiter-hinweis">Signalwörter: abgeholt, verkauft &rarr; minus · pro Stück, pro Tag &rarr; mal · gerecht verteilt &rarr; geteilt · insgesamt &rarr; plus</div></details>';
+}
 /* ---------- Registry: jede Werkbank liefert Plan, Aufgaben und Hilfe ----
    Damit laeuft EINE Lektionsmechanik fuer alle Kapitel. Eine zweite
    Lektionslogik pro Kapitel waere die sichere Quelle fuer Fehler, die nur
@@ -6302,13 +6829,15 @@ const MA_TRAINER = {
   flaechen:    { titel:'Flächeninhalte', plan: maFlPlan, aufgabe: maFlAufgabe, hilfe: (a, offen) => maFlHilfe(offen) },
   geometrie:   { titel:'Geometrie', plan: maGeoPlan, aufgabe: maGeoAufgabe, hilfe: (a, offen) => maGeoHilfe(offen) },
   gleichungen: { titel:'Gleichungen', plan: maGlPlan, aufgabe: maGlAufgabe, hilfe: (a, offen) => maGlHilfe(offen) },
-  daten:       { titel:'Daten', plan: maDaPlan, aufgabe: maDaAufgabe, hilfe: (a, offen) => maDaHilfe(offen) }
+  daten:       { titel:'Daten', plan: maDaPlan, aufgabe: maDaAufgabe, hilfe: (a, offen) => maDaHilfe(offen) },
+  sachaufgaben:{ titel:'Sachaufgaben', plan: maSaPlan, eigen: maSaLektion, hilfe: (a, offen) => maSaHilfe(offen) }
 };
-const MA_ID_PRAEFIX = { zahlen:'ma_za_', rechnen:'ma_re_', ganze:'ma_gz_', flaechen:'ma_fl_', geometrie:'ma_geo_', gleichungen:'ma_gl_', daten:'ma_da_' };
-const MA_ERWARTET = { zahlen:8, rechnen:8, ganze:5, flaechen:4, geometrie:5, gleichungen:4, daten:5 };
+const MA_ID_PRAEFIX = { sachaufgaben:'ma_sa_', zahlen:'ma_za_', rechnen:'ma_re_', ganze:'ma_gz_', flaechen:'ma_fl_', geometrie:'ma_geo_', gleichungen:'ma_gl_', daten:'ma_da_' };
+const MA_ERWARTET = { sachaufgaben:6, zahlen:8, rechnen:8, ganze:5, flaechen:4, geometrie:5, gleichungen:4, daten:5 };
 
 function maLektion(bereichId) {
   if (!MA_TRAINER[bereichId]) { renderWerkstatt(); return; }
+  if (MA_TRAINER[bereichId].eigen) { MA_TRAINER[bereichId].eigen(); return; }
   maLektionLauf(bereichId);
 }
 function maLektionLauf(bereichId) {
@@ -6474,6 +7003,8 @@ const MA_TYP_NAME = {
  unterschied:'Unterschied', flaeche:'Flächeninhalt', umfang:'Umfang', fehlend:'Fehlende Seite', flaecheneinheit:'Flächeneinheiten',
  winkelart:'Winkelarten', winkelmass:'Winkel schätzen', koordinaten:'Koordinaten', einsetzen:'Einsetzen', loesen:'Gleichung lösen',
  formel:'Formel anwenden', strichliste:'Strichliste', diagramm:'Diagramm lesen',
+ runden:'Umfang mal Runden', prostueck:'Anzahl mal Preis', rest:'Rest berechnen', aufteilen:'Gerecht aufteilen',
+ flaeche:'Fläche mal Menge', mehrschritt:'Zwei Schritte',
  um: 'Umrechnen', gemischt: 'Gemischte Schreibweise', bezug: 'Welche Einheit passt?',
   vergleich: 'Vergleichen', ordnen: 'Ordnen', zeitspanne: 'Zeitspannen', einheit: 'Fehlende Einheit',
   weiter: 'Mehr und weniger als', bruch: 'Bruchteile' };
@@ -18650,7 +19181,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v89';
+const APP_VERSION = 'v90';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
