@@ -6076,7 +6076,7 @@ function maAufgabeVergleich(stufe, nurBereiche) {
   return {
     id: 'ma_vgl_' + b, typ: 'vergleich', bereich: b, modus: 'wahl',
     anweisung: 'Was ist mehr?',
-    zeile: links + '<span class="ma-gegen">oder</span>' + rechts,
+    zeile: links + '<span class="ma-gegen"> oder </span>' + rechts,
     optionen: opts,
     loesung: wA === wB ? links + ' = ' + rechts : (wA > wB ? links + ' > ' + rechts : links + ' < ' + rechts),
     erklaerung: 'In ' + g.einheiten[0].e + ': ' + maZahl(wA) + ' gegen ' + maZahl(wB) + '.'
@@ -6564,7 +6564,7 @@ function maLeiter(bereich, offen) {
   return `<details class='ma-leiter' ${offen ? 'open' : ''}>
     <summary>Umrechnen: ${g.titel}</summary>
     <table class='ma-leiter-tabelle'>${zeilen}</table>
-    <div class='ma-leiter-hinweis'>Kleinere Einheit &rarr; mal nehmen. Groessere Einheit &rarr; teilen.</div>
+    <div class='ma-leiter-hinweis'>Kleinere Einheit &rarr; mal nehmen. Größere Einheit &rarr; teilen.</div>
   </details>`;
 }
 
