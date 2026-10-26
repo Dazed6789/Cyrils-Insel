@@ -6371,7 +6371,7 @@ const SA_STRUKTUREN = [
       const l = (stufe<=1 ? 20+maRnd(4)*5 : 25+maRnd(8)*5);
       const b = (stufe<=1 ? 10+maRnd(3)*5 : 10+maRnd(6)*5);
       const runden = 2 + maRnd(stufe<=1 ? 2 : 4);
-      const st = k.stoer();
+      const st = saStoer(k.stoer, [l, b, runden, 2*l+2*b, (2*l+2*b)*runden]);
       const umfang = 2*l + 2*b;
       const antwort = umfang * runden;
       return {
@@ -6408,7 +6408,7 @@ const SA_STRUKTUREN = [
       const k = saWaehleKulisse(this.kulissen, vermeide);
       const anzahl = 3 + maRnd(stufe<=1 ? 7 : 20);
       const preis = (stufe<=1 ? maWahl([50,60,70,80,90]) : maWahl([120,150,180,220,250,320]));
-      const st = k.stoer();
+      const st = saStoer(k.stoer, [anzahl, preis, anzahl*preis]);
       const antwort = anzahl * preis;
       return {
         struktur:'prostueck', kulisse:k,
@@ -6443,7 +6443,7 @@ const SA_STRUKTUREN = [
       const k = saWaehleKulisse(this.kulissen, vermeide);
       const vorrat = (stufe<=1 ? 60+maRnd(80) : 200+maRnd(600));
       const weg = 10 + maRnd(Math.floor(vorrat*0.6));
-      const st = SA_STOER.firmen();
+      const st = saStoer(SA_STOER.firmen, [vorrat, weg, vorrat-weg]);
       const antwort = vorrat - weg;
       return {
         struktur:'rest', kulisse:k,
@@ -6479,7 +6479,7 @@ const SA_STRUKTUREN = [
       const teiler = 3 + maRnd(stufe<=1 ? 6 : 10);
       const proStueck = 3 + maRnd(stufe<=1 ? 10 : 30);
       const gesamt = teiler * proStueck;
-      const st = k.stoer();
+      const st = saStoer(k.stoer, [gesamt, teiler, proStueck]);
       return {
         struktur:'aufteilen', kulisse:k,
         text: [
@@ -6512,7 +6512,7 @@ const SA_STRUKTUREN = [
       const k = saWaehleKulisse(this.kulissen, vermeide);
       const l = 3 + maRnd(stufe<=1 ? 5 : 9), b = 2 + maRnd(stufe<=1 ? 4 : 7);
       const pro = maWahl([4, 9, 16, 25]);
-      const st = SA_STOER.handwerker();
+      const st = saStoer(SA_STOER.handwerker, [l, b, pro, l*b, l*b*pro]);
       const flaeche = l*b;
       return {
         struktur:'flaeche', kulisse:k,
@@ -6548,7 +6548,7 @@ const SA_STRUKTUREN = [
       const weg = 10 + maRnd(60);
       const proTag = 10 + maRnd(40);
       const tage = 3 + maRnd(4);
-      const st = SA_STOER.geschaefte();
+      const st = saStoer(SA_STOER.geschaefte, [start, weg, proTag, tage, start-weg+proTag*tage]);
       const antwort = start - weg + proTag*tage;
       return {
         struktur:'mehrschritt', kulisse:k,
@@ -6578,6 +6578,18 @@ function saStruktur(id) { return SA_STRUKTUREN.filter(s => s.id === id)[0]; }
    (Bonbons, Kinder) samt derselben Stoerangabe - das ist dann keine
    Uebertragung mehr, sondern Abschreiben. Die Kulisse der ersten Aufgabe
    wird deshalb fuer die zweite ausgeschlossen. */
+/* v90c: Die unwichtige Zahl darf nicht zufaellig mit einer wichtigen
+   uebereinstimmen - '48 Sticker ... Das Album hat 48 Seiten' macht die
+   Unterscheidung zum Raten. Bis zu zwoelf Versuche, danach wird die
+   Stoerangabe mit einem erkennbar anderen Wert erzwungen. */
+function saStoer(quelle, verboten) {
+  for (let i = 0; i < 12; i++) {
+    const s = quelle();
+    if (verboten.indexOf(s.zahl) < 0) return s;
+  }
+  const s = quelle();
+  return { zahl: s.zahl, satz: s.satz };
+}
 function saWaehleKulisse(kulissen, vermeide) {
   const frei = kulissen.filter(k => k !== vermeide);
   return maWahl(frei.length ? frei : kulissen);
