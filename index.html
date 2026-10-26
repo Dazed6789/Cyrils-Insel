@@ -173,6 +173,53 @@ button{font-family:var(--font-main); letter-spacing:var(--letter-spacing-base); 
 .gt-balken-zahl{ text-align:right; font-weight:700; font-size:.85rem; }
 .gt-fehlerliste{ display:flex; flex-direction:column; gap:8px; text-align:left; }
 .gt-fehler{ background:#fbeaea; border-radius:10px; padding:7px 10px; display:flex; flex-direction:column; }
+/* ---- v88 Mathe ---- */
+.fach-leiste{display:flex;gap:6px;background:#E8EFF2;padding:4px;border-radius:12px;margin:6px 0 10px;}
+.fach-tab{flex:1;padding:9px 10px;border:none;border-radius:9px;background:transparent;font-size:1rem;font-weight:600;color:#5A7380;cursor:pointer;}
+.fach-tab.an{background:#FFF;color:#1C3D4A;box-shadow:0 1px 3px rgba(0,0,0,.12);}
+.werkbank-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;}
+.werkbank{display:block;text-align:left;background:#FFF;border:2px solid #D8C3A5;border-radius:14px;padding:12px 14px;cursor:pointer;font:inherit;color:inherit;}
+.werkbank:active{transform:translateY(1px);}
+.werkbank.gesperrt{opacity:.5;border-style:dashed;cursor:default;}
+.wb-lb{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#9A7B4F;}
+.wb-titel{font-size:1.08rem;font-weight:700;margin:2px 0 3px;}
+.wb-text{font-size:.86rem;color:#667;line-height:1.3;}
+.wb-balken{height:7px;border-radius:4px;background:#EEE6DA;margin:9px 0 4px;overflow:hidden;}
+.wb-balken span{display:block;height:100%;background:#C8A063;border-radius:4px;}
+.wb-stand{font-size:.78rem;color:#8A8A8A;}
+.wb-bald{margin-top:9px;font-size:.78rem;font-weight:700;color:#9A7B4F;}
+.ma-zeile{font-size:1.5rem;font-weight:700;text-align:center;margin:10px 0 12px;line-height:1.5;}
+.ma-luecke{display:inline-block;min-width:2.2em;padding:0 .25em;border-bottom:3px solid #C8A063;color:#C8A063;}
+.ma-gegen{display:inline-block;margin:0 .6em;font-size:.95rem;font-weight:400;color:#8A8A8A;}
+.ma-anzeige{display:flex;align-items:baseline;justify-content:center;gap:8px;min-height:2.2em;font-size:1.8rem;font-weight:700;background:#F7F4EF;border:2px solid #D8C3A5;border-radius:12px;padding:8px 12px;margin-bottom:10px;}
+.ma-anzeige.gut{border-color:#4CAF50;background:#EDF8EE;}
+.ma-anzeige.schlecht{border-color:#E07A5F;background:#FCEFEA;}
+.ma-einheit{font-size:1.05rem;font-weight:600;color:#8A8A8A;}
+.ma-pad{display:flex;flex-direction:column;gap:6px;}
+.ma-pad-reihe{display:flex;gap:6px;}
+.ma-taste{flex:1;padding:14px 0;font-size:1.35rem;font-weight:700;border:none;border-radius:11px;background:#EFEAE1;color:#1C3D4A;cursor:pointer;}
+.ma-taste:active{background:#E2D9CA;}
+.ma-taste.weg{background:#E6DCDC;}
+.ma-taste:disabled{opacity:.45;}
+.ma-ok{margin-top:4px;padding:13px 0;font-size:1.1rem;font-weight:700;border:none;border-radius:11px;background:#C8A063;color:#2A1E07;cursor:pointer;}
+.ma-ok:disabled{opacity:.5;}
+.ma-karten{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.ma-karte{position:relative;padding:15px 8px;font-size:1.1rem;font-weight:700;border:2px solid #D8C3A5;border-radius:12px;background:#FFF;cursor:pointer;}
+.ma-karte.correct{border-color:#4CAF50;background:#EDF8EE;}
+.ma-karte:disabled{opacity:.75;}
+.ma-platz{position:absolute;top:3px;right:6px;font-size:.78rem;color:#4CAF50;font-weight:700;}
+.ma-gut{color:#2F7A4A;font-weight:700;}
+.ma-loesung{display:block;font-weight:700;margin-bottom:3px;}
+.ma-leiter,.ma-blatt{margin-top:12px;border-top:1px solid #EEE;padding-top:8px;}
+.ma-leiter summary,.ma-blatt summary{cursor:pointer;font-size:.9rem;font-weight:600;color:#8A6A12;}
+.ma-leiter-tabelle{margin-top:6px;border-collapse:collapse;font-size:.92rem;}
+.ma-leiter-tabelle td{padding:3px 10px 3px 0;}
+.ma-leiter-pfeil{color:#8A8A8A;}
+.ma-leiter-hinweis{margin-top:5px;font-size:.82rem;color:#777;}
+.ma-blatt-leiste{display:flex;gap:6px;margin:8px 0 6px;flex-wrap:wrap;}
+.ma-blatt-knopf{padding:7px 12px;font-size:.88rem;border:1px solid #D8C3A5;border-radius:9px;background:#FFF;cursor:pointer;}
+.ma-blatt-knopf.an{background:#C8A063;border-color:#C8A063;color:#2A1E07;font-weight:700;}
+.ma-blatt-flaeche{width:100%;height:220px;border:2px dashed #D8C3A5;border-radius:12px;background:#FFFDF8;touch-action:none;display:block;}
 .pm-banner{background:#FFF8E6;border:2px solid #E8C96A;border-radius:14px;padding:12px 14px;margin-bottom:10px;}
 .pm-banner.pm-fertig{background:#EAF7EE;border-color:#8CC9A0;}
 .pm-kopf{font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8A6A12;margin-bottom:4px;}
@@ -5506,6 +5553,9 @@ function renderNav(active) {
   return `<div class="main-nav">${tabs.map(t => `<button class="nav-tab ${t.key === active ? 'active' : ''}" data-nav="${t.key}"><img class="nav-icon" src="${IMAGE_DATA[t.icon]}" alt="">${t.label}</button>`).join('')}</div>`;
 }
 function attachNav() {
+  /* v88: der Fach-Umschalter haengt mit an attachNav, damit er auf jedem
+     Bildschirm funktioniert, der ihn zeigt - eine Stelle statt zwei. */
+  document.querySelectorAll('[data-fach]').forEach(b => { b.onclick = () => fachWechseln(b.dataset.fach); });
   document.querySelectorAll('[data-nav]').forEach(btn => {
     btn.onclick = () => {
       const target = btn.dataset.nav;
@@ -5513,7 +5563,7 @@ function attachNav() {
       // sicherer Standard, damit man nicht aus Versehen im Testmodus bleibt
       // und dort etwas tut, das man eigentlich als echten Fortschritt meint.
       restoreRealProgressIfTestMode();
-      if (target === 'learn') renderMap();
+      if (target === 'learn') renderLernen();
       else if (target === 'build') renderSpiele();   // v63: Spielebereich statt direkt Bauwelt
       else if (target === 'profile') renderProfile();
     };
@@ -5709,6 +5759,925 @@ function renderPruefmodus() {
   document.getElementById('pmZurueckBtn').onclick = renderProfile;
   malen();
   attachNav();
+}
+/* =========================================================================
+   v88 (Joules Auftrag 26.10.2026): Mathematik als zweites Fach.
+
+   Joules Vorgabe: keine zweite App, Inseln bleiben Englisch, zwischen den
+   Faechern soll man umschalten koennen, Bau- und Spielkonten gelten
+   uebergreifend. Letzteres war der eigentliche Grund, es hier einzubauen und
+   nicht daneben: die geteilten Konten existieren seit v76/v77 bereits
+   (progress.gems und progress.bauweltZeitguthabenSec sind global). Ein
+   zweites Programm haette sie wieder auseinandergerissen.
+
+   Inhaltliche Grundlage: LehrplanPLUS Mittelschule, Mathematik
+   Jahrgangsstufe 5, sechs Lernbereiche. Dieser Bau deckt Lernbereich 5
+   (Groessen im Alltag) ab - Joules erster von zwei genannten Schmerzpunkten.
+   Der zweite (Sachaufgaben) wartet auf die Buchscreenshots, weil die
+   Formulierungsart des Buches dafuer den Unterschied macht.
+   ========================================================================= */
+
+/* Die Werkbaenke der Werkstatt. Reihenfolge nach Joules Prioritaet, nicht
+   nach Lehrplannummer - was wehtut, kommt zuerst. */
+const MA_BEREICHE = [
+  { id: 'groessen', lb: 'Kapitel 4 · S. 79', titel: 'Größen',
+    text: 'Geld, Länge, Masse, Volumen, Zeit – in Buchreihenfolge', fertig: true },
+  { id: 'sachaufgaben', lb: 'Strategie · S. 71', titel: 'Sachaufgaben lösen',
+    text: 'Text verstehen, dann rechnen – mit Vorlesen', fertig: false },
+  { id: 'rechnen', lb: 'Kapitel 3 · S. 51', titel: 'Rechnen mit natürlichen Zahlen',
+    text: 'Grundrechenarten, Rechenvorteile, schriftlich rechnen', fertig: false },
+  { id: 'zahlen', lb: 'Kapitel 2 · S. 29', titel: 'Die natürlichen Zahlen',
+    text: 'Ordnen, vergleichen, Stellenwert, runden', fertig: false },
+  { id: 'geometrie', lb: 'Kapitel 5 · S. 101', titel: 'Grundbegriffe der Geometrie',
+    text: 'Gerade, parallel, senkrecht, Umfang, Koordinaten, Winkel', fertig: false },
+  { id: 'flaechen', lb: 'Kapitel 7 · S. 151', titel: 'Flächeninhalte – Rechtecke',
+    text: 'Vergleichen und berechnen, cm² und m²', fertig: false },
+  { id: 'ganze', lb: 'Kapitel 6 · S. 131', titel: 'Die ganzen Zahlen',
+    text: 'Minusgrade, Zustandsänderungen, Zahlengerade', fertig: false },
+  { id: 'daten', lb: 'Kapitel 1 · S. 7', titel: 'Daten',
+    text: 'Umfragen, Tabellen, Diagramme zeichnen und auswerten', fertig: false },
+  { id: 'gleichungen', lb: 'Kapitel 8 · S. 171', titel: 'Gleichungen und Formeln',
+    text: 'Variablen, Umkehraufgaben, systematisches Probieren', fertig: false }
+];
+/* Die Groessenbereiche mit ihren Umrechnungsfaktoren, bezogen auf die
+   jeweils kleinste Einheit. Monat und Jahr fehlen bewusst: sie sind nicht
+   exakt umrechenbar (28-31 Tage), taugen also nicht fuer Rechenaufgaben. */
+const MA_GROESSEN = {
+  laenge:  { titel: 'Längen', einheiten: [ {e:'mm',f:1}, {e:'cm',f:10}, {e:'dm',f:100}, {e:'m',f:1000}, {e:'km',f:1000000} ], komma: true },
+  masse:   { titel: 'Massen', einheiten: [ {e:'mg',f:1}, {e:'g',f:1000}, {e:'kg',f:1000000}, {e:'t',f:1000000000} ], komma: false },
+  volumen: { titel: 'Volumen', einheiten: [ {e:'ml',f:1}, {e:'l',f:1000} ], komma: false },
+  zeit:    { titel: 'Zeitspannen', einheiten: [ {e:'s',f:1}, {e:'min',f:60}, {e:'h',f:3600}, {e:'Tag',f:86400}, {e:'Woche',f:604800} ], komma: false, nurNachbar: true },
+  geld:    { titel: 'Geldwerte', einheiten: [ {e:'ct',f:1}, {e:'€',f:100} ], komma: true }
+};
+const MA_BEREICH_KEYS = ['laenge','masse','volumen','zeit','geld'];
+
+/* Bezugsgroessen fuer 'Welche Einheit passt?'. Der Lehrplan verlangt
+   ausdruecklich das Abschaetzen mithilfe von Vorstellungen ueber
+   Bezugsgroessen - das ist die Uebung dazu. Alle Werte bewusst aus seiner
+   Lebenswelt. */
+const MA_BEZUG = [
+  { s: 'Ein Fahrrad wiegt etwa 14 ___.', b: 'masse', e: 'kg' },
+  { s: 'Eine Tafel Schokolade wiegt 100 ___.', b: 'masse', e: 'g' },
+  { s: 'Ein Lastwagen wiegt 12 ___.', b: 'masse', e: 't' },
+  { s: 'Eine Tablette wiegt 500 ___.', b: 'masse', e: 'mg' },
+  { s: 'Ein Mensch wiegt etwa 70 ___.', b: 'masse', e: 'kg' },
+  { s: 'Ein Bleistift ist 17 ___ lang.', b: 'laenge', e: 'cm' },
+  { s: 'Ein Klassenzimmer ist 8 ___ breit.', b: 'laenge', e: 'm' },
+  { s: 'Von München nach Nürnberg sind es 170 ___.', b: 'laenge', e: 'km' },
+  { s: 'Ein Blatt Papier ist 0,1 ___ dick.', b: 'laenge', e: 'mm' },
+  { s: 'Eine Tür ist 2 ___ hoch.', b: 'laenge', e: 'm' },
+  { s: 'Ein Turnschuh ist 25 ___ lang.', b: 'laenge', e: 'cm' },
+  { s: 'Eine Flasche Wasser enthält 1 ___.', b: 'volumen', e: 'l' },
+  { s: 'Ein Teelöffel fasst 5 ___.', b: 'volumen', e: 'ml' },
+  { s: 'Eine Badewanne fasst 150 ___.', b: 'volumen', e: 'l' },
+  { s: 'Eine Schulstunde dauert 45 ___.', b: 'zeit', e: 'min' },
+  { s: 'Eine Nacht Schlaf dauert 9 ___.', b: 'zeit', e: 'h' },
+  { s: 'Die Sommerferien dauern 6 ___.', b: 'zeit', e: 'Woche' },
+  { s: 'Ein Wimpernschlag dauert 1 ___.', b: 'zeit', e: 's' },
+  { s: 'Ein Wochenende dauert 2 ___.', b: 'zeit', e: 'Tag' },
+  { s: 'Ein Kaugummi kostet 30 ___.', b: 'geld', e: 'ct' },
+  { s: 'Ein Kinobesuch kostet 11 ___.', b: 'geld', e: '€' },
+  { s: 'Ein neues Fahrrad kostet 400 ___.', b: 'geld', e: '€' },
+  { s: 'Ein Brötchen kostet 60 ___.', b: 'geld', e: 'ct' },
+  { s: 'Ein Tennisball wiegt 58 ___.', b: 'masse', e: 'g' }
+];
+
+/* ---------- Mathe-Mastery: eigenes Konto, bewusst getrennt von vocab_state.
+   Gezaehlt wird nicht die Einzelaufgabe (die ist jedes Mal neu), sondern die
+   FERTIGKEIT - z. B. 'km in m umrechnen'. Spaced Repetition ueber
+   Fertigkeiten ist bei Mathe das richtige Mass; eine konkrete Aufgabe
+   wiederzusehen waere sinnlos. Dieselbe Intervall-Leiter wie beim
+   Wortschatz, damit sich beide Faecher gleich anfuehlen. ---------- */
+function maState(id) {
+  progress.math_state = progress.math_state || {};
+  if (!progress.math_state[id]) progress.math_state[id] = { correct: 0, error: 0, interval: 0, ease: 2.0, next_review: 0 };
+  return progress.math_state[id];
+}
+function maReview(id, ok) {
+  const s = maState(id);
+  const tag = 86400000;
+  if (ok) {
+    s.correct++;
+    s.interval = s.interval === 0 ? 1 : Math.min(60, Math.round(s.interval * s.ease));
+    s.ease = Math.min(3.0, s.ease + 0.1);
+  } else {
+    s.error++;
+    s.ease = Math.max(1.3, s.ease - 0.25);
+    s.interval = 1;
+  }
+  s.next_review = Date.now() + s.interval * tag;
+  try { saveProgress(); } catch (e) {}
+}
+function maQuote(id) { const s = maState(id); const n = s.correct + s.error; return n ? s.correct / n : 0; }
+function maSitzt(id) { const s = maState(id); return s.correct >= 3 && maQuote(id) >= 0.8; }
+/* Fortschritt einer Werkbank: Anteil der sicher sitzenden Fertigkeiten. */
+function maBereichFortschritt(bereichId) {
+  const ids = maFertigkeiten(bereichId);
+  if (!ids.length) return { sitzt: 0, gesamt: 0, pct: 0 };
+  const sitzt = ids.filter(maSitzt).length;
+  return { sitzt: sitzt, gesamt: ids.length, pct: Math.round(sitzt / ids.length * 100) };
+}
+function maFertigkeiten(bereichId) {
+  if (bereichId !== 'groessen') return [];
+  const ids = [];
+  MA_BEREICH_KEYS.forEach(b => {
+    const g = MA_GROESSEN[b];
+    for (let i = 0; i < g.einheiten.length; i++) {
+      for (let j = 0; j < g.einheiten.length; j++) {
+        if (i === j) continue;
+        if (Math.abs(i - j) > (g.nurNachbar ? 1 : 2)) continue;
+        ids.push('ma_um_' + b + '_' + g.einheiten[i].e + '_' + g.einheiten[j].e);
+      }
+    }
+    ids.push('ma_bez_' + b);
+    ids.push('ma_vgl_' + b);
+    ids.push('ma_einheit_' + b);
+  });
+  ids.push('ma_gemischt', 'ma_ordnen', 'ma_zeitspanne', 'ma_weiter', 'ma_bruch');
+  return ids;
+}
+
+/* ---------- Zahlen in deutscher Schreibweise ---------- */
+function maZahl(n) {
+  if (Math.abs(n - Math.round(n)) < 1e-9) return String(Math.round(n));
+  return String(Math.round(n * 1000) / 1000).replace('.', ',');
+}
+/* Eingabe pruefen: Komma oder Punkt, Leerzeichen und Tausenderpunkte egal.
+   Anders als bei den Vokabeln gibt es hier KEINE Toleranz - eine Zahl ist
+   richtig oder falsch. Die LRS-Ruecksicht liegt woanders: kurzer
+   Aufgabentext, Zahlenfeld statt Tastatur, Umrechnungsleiter zum Nachsehen. */
+function maZahlPasst(eingabe, soll) {
+  if (eingabe === null || eingabe === undefined) return false;
+  let s = String(eingabe).trim().replace(/\s/g, '').replace(/\u00a0/g, '');
+  if (s === '') return false;
+  if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+  else if ((s.match(/\./g) || []).length > 1) s = s.replace(/\./g, '');
+  const z = Number(s);
+  if (!isFinite(z)) return false;
+  return Math.abs(z - soll) < 1e-9;
+}
+/* Einheiten wie Tag und Woche brauchen eine Mehrzahl - '2 Tag' liest sich
+   falsch, und bei LRS ist jede sprachliche Unebenheit eine unnoetige Huerde.
+   Die Ids bleiben im Singular, nur die Anzeige beugt. */
+const MA_PLURAL = { 'Tag': 'Tage', 'Woche': 'Wochen' };
+function maEinheitText(e, zahl) {
+  if (zahl === 1 || !MA_PLURAL[e]) return e;
+  return MA_PLURAL[e];
+}
+function maGroesseText(zahl, e) { return maZahl(zahl) + ' ' + maEinheitText(e, zahl); }
+/* Kommazahlen sind laut Lehrplan nur bei Geldwerten und Laengen vorgesehen
+   (M5 LB5). Bei Massen, Volumina und Zeitspannen waere '0,3 g' also nicht
+   nur unschoen, sondern ausserhalb des Stoffes. Diese Funktion bringt einen
+   berechneten Wert in eine fuer den Groessenbereich zulaessige Form oder
+   gibt null zurueck - dann zieht der Generator neu. */
+function maZulaessigerWert(z, g) {
+  if (!isFinite(z) || z <= 0) return null;
+  if (g.komma) {
+    const r = z >= 10 ? Math.round(z / 5) * 5 : Math.round(z * 10) / 10;
+    return r > 0 ? r : null;
+  }
+  const r = z >= 10 ? Math.round(z / 5) * 5 : Math.round(z);
+  return r >= 1 ? r : null;
+}
+function maRnd(n) { return Math.floor(Math.random() * n); }
+function maWahl(arr) { return arr[maRnd(arr.length)]; }
+function maMischen(arr) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = maRnd(i + 1); const h = a[i]; a[i] = a[j]; a[j] = h; } return a; }
+/* Ausgangswerte je Stufe - bewusst 'runde' Zahlen am Anfang. */
+function maBasiswert(stufe) {
+  if (stufe <= 1) return 2 + maRnd(8);
+  if (stufe === 2) return maWahl([12, 15, 18, 20, 24, 25, 30, 35, 40, 45, 50, 60, 75, 80]);
+  return maWahl([105, 120, 125, 150, 180, 200, 240, 250, 320, 350, 400, 450, 500, 750]);
+}
+
+/* ---------- Aufgabentyp A: umrechnen ---------- */
+function maAufgabeUm(stufe, nurBereiche) {
+  const b = maWahl(nurBereiche && nurBereiche.length ? nurBereiche : MA_BEREICH_KEYS);
+  const g = MA_GROESSEN[b];
+  const maxAbstand = (g.nurNachbar || stufe <= 1) ? 1 : 2;
+  const i = maRnd(g.einheiten.length);
+  const kand = [];
+  for (let k = 0; k < g.einheiten.length; k++) {
+    if (k === i || Math.abs(k - i) > maxAbstand) continue;
+    /* Der Lehrplan verlangt das Umrechnen in die NACHBAREINHEIT. Zwei
+       Schritte sind als Steigerung in Ordnung, aber nur solange der Faktor
+       handhabbar bleibt - 25 t = 25.000.000 g ist rechnerisch richtig und
+       didaktisch Unsinn. */
+    const verh = Math.max(g.einheiten[i].f / g.einheiten[k].f, g.einheiten[k].f / g.einheiten[i].f);
+    if (verh > 1000) continue;
+    kand.push(k);
+  }
+  if (!kand.length) return maAufgabeGemischt(stufe, nurBereiche);
+  const j = maWahl(kand);
+  const von = g.einheiten[i], nach = g.einheiten[j];
+  let wert, antwort;
+  if (von.f >= nach.f) {
+    const faktor = von.f / nach.f;
+    wert = maBasiswert(faktor >= 1000 ? Math.min(stufe, 2) : stufe);
+    antwort = wert * faktor;
+  } else {
+    const teiler = Math.round(nach.f / von.f);
+    let a = maBasiswert(stufe <= 1 ? 1 : 2);
+    if (stufe >= 3 && g.komma && teiler % 10 === 0) a = a + 0.5;   /* nur Laengen und Geld, s. maZulaessigerWert */
+    antwort = a;
+    wert = Math.round(a * teiler);
+  }
+  return {
+    id: 'ma_um_' + b + '_' + von.e + '_' + nach.e,
+    typ: 'um', bereich: b, modus: 'zahl',
+    anweisung: 'Rechne um.',
+    zeile: maGroesseText(wert, von.e) + ' = <span class="ma-luecke">?</span> ' + maEinheitText(nach.e, antwort),
+    einheit: maEinheitText(nach.e, antwort),
+    antwort: antwort,
+    loesung: maGroesseText(wert, von.e) + ' = ' + maGroesseText(antwort, nach.e),
+    erklaerung: von.f >= nach.f
+      ? '1 ' + von.e + ' = ' + maZahl(von.f / nach.f) + ' ' + nach.e + ' &rarr; mal ' + maZahl(von.f / nach.f)
+      : '1 ' + nach.e + ' = ' + maZahl(nach.f / von.f) + ' ' + von.e + ' &rarr; geteilt durch ' + maZahl(nach.f / von.f)
+  };
+}
+
+/* ---------- Aufgabentyp B: gemischte Schreibweise ---------- */
+const MA_GEMISCHT_PAARE = [
+  { b:'laenge', gross:'m', klein:'cm', f:100, maxKlein:99 },
+  { b:'laenge', gross:'km', klein:'m', f:1000, maxKlein:999 },
+  { b:'laenge', gross:'cm', klein:'mm', f:10, maxKlein:9 },
+  { b:'masse', gross:'kg', klein:'g', f:1000, maxKlein:999 },
+  { b:'volumen', gross:'l', klein:'ml', f:1000, maxKlein:999 },
+  { b:'zeit', gross:'h', klein:'min', f:60, maxKlein:59 },
+  { b:'zeit', gross:'min', klein:'s', f:60, maxKlein:59 },
+  { b:'geld', gross:'€', klein:'ct', f:100, maxKlein:99 }
+];
+function maAufgabeGemischt(stufe, nurBereiche) {
+  const pool = (nurBereiche && nurBereiche.length) ? MA_GEMISCHT_PAARE.filter(x => nurBereiche.indexOf(x.b) >= 0) : MA_GEMISCHT_PAARE;
+  if (!pool.length) return maAufgabeUm(stufe, nurBereiche);
+  const p = maWahl(pool);
+  const gross = 1 + maRnd(stufe >= 2 ? 9 : 4);
+  const klein = 1 + maRnd(p.maxKlein);
+  const antwort = gross * p.f + klein;
+  return {
+    id: 'ma_gemischt', typ: 'gemischt', bereich: p.b, modus: 'zahl',
+    anweisung: 'Schreibe alles in der kleineren Einheit.',
+    zeile: gross + ' ' + p.gross + ' ' + klein + ' ' + p.klein + ' = <span class="ma-luecke">?</span> ' + p.klein,
+    einheit: p.klein, antwort: antwort,
+    loesung: gross + ' ' + p.gross + ' ' + klein + ' ' + p.klein + ' = ' + antwort + ' ' + p.klein,
+    erklaerung: gross + ' ' + p.gross + ' = ' + (gross * p.f) + ' ' + p.klein + ', dazu die ' + klein + ' ' + p.klein + '.'
+  };
+}
+
+/* Liest die Zahl aus dem Bezugssatz, damit die Einheit richtig gebeugt wird. */
+function maBezugZahl(satz) { const m = satz.match(/(\d+(?:,\d+)?)\s*___/); return m ? Number(m[1].replace(',', '.')) : 2; }
+/* ---------- Aufgabentyp C: welche Einheit passt? ---------- */
+function maAufgabeBezug(nurBereiche) {
+  const pool = (nurBereiche && nurBereiche.length) ? MA_BEZUG.filter(x => nurBereiche.indexOf(x.b) >= 0) : MA_BEZUG;
+  const q = maWahl(pool.length ? pool : MA_BEZUG);
+  const g = MA_GROESSEN[q.b];
+  const andere = g.einheiten.map(x => x.e).filter(e => e !== q.e);
+  const opts = maMischen([q.e].concat(maMischen(andere).slice(0, Math.min(3, andere.length))));
+  return {
+    id: 'ma_bez_' + q.b, typ: 'bezug', bereich: q.b, modus: 'wahl',
+    anweisung: 'Welche Einheit passt?',
+    zeile: q.s.replace('___', '<span class="ma-luecke">?</span>'),
+    optionen: opts.map(e => ({ t: e, ok: e === q.e })),
+    loesung: q.s.replace('___', maEinheitText(q.e, maBezugZahl(q.s))),
+    erklaerung: 'Stell dir die Größe vor: ' + q.s.replace('___', maEinheitText(q.e, maBezugZahl(q.s)))
+  };
+}
+
+/* ---------- Aufgabentyp D: vergleichen ---------- */
+function maAufgabeVergleich(stufe, nurBereiche) {
+  const b = maWahl(nurBereiche && nurBereiche.length ? nurBereiche : MA_BEREICH_KEYS);
+  const g = MA_GROESSEN[b];
+  const i = maRnd(g.einheiten.length);
+  const kand = [];
+  for (let k = 0; k < g.einheiten.length; k++) if (k !== i && Math.abs(k - i) <= 1) kand.push(k);
+  const j = maWahl(kand);
+  if (j === undefined) return maAufgabeUm(stufe, nurBereiche);
+  /* v88-Korrektur noch vor dem Push: in der ersten Fassung wurden beide
+     Zahlen unabhaengig gezogen - dabei entstanden Paare wie '250 l oder
+     125 ml'. Rechnerisch richtig, als Aufgabe wertlos, weil die Antwort ohne
+     Umrechnen offensichtlich ist. Jetzt wird die zweite Groesse in die
+     Groessenordnung der ersten gelegt und nur leicht verschoben, sodass man
+     wirklich umrechnen muss. */
+  const a = { z: maBasiswert(stufe), u: g.einheiten[i] };
+  const basisA = a.z * a.u.f;
+  let zB = basisA / g.einheiten[j].f;
+  const wuerfel = maRnd(5);
+  if (wuerfel === 0) { /* genau gleich gross - die Antwort 'gleich groß' muss vorkommen */ }
+  else zB = zB * maWahl([0.5, 0.8, 1.25, 1.5, 2]);
+  const zBok = maZulaessigerWert(zB, g);
+  if (zBok === null) return maAufgabeUm(stufe, nurBereiche);
+  let b2 = { z: zBok, u: g.einheiten[j] };
+  const wA = a.z * a.u.f, wB = b2.z * b2.u.f;
+  const links = maGroesseText(a.z, a.u.e), rechts = maGroesseText(b2.z, b2.u.e);
+  const opts = [
+    { t: links, ok: wA > wB },
+    { t: rechts, ok: wB > wA },
+    { t: 'gleich groß', ok: wA === wB }
+  ];
+  return {
+    id: 'ma_vgl_' + b, typ: 'vergleich', bereich: b, modus: 'wahl',
+    anweisung: 'Was ist mehr?',
+    zeile: links + '<span class="ma-gegen">oder</span>' + rechts,
+    optionen: opts,
+    loesung: wA === wB ? links + ' = ' + rechts : (wA > wB ? links + ' > ' + rechts : links + ' < ' + rechts),
+    erklaerung: 'In ' + g.einheiten[0].e + ': ' + maZahl(wA) + ' gegen ' + maZahl(wB) + '.'
+  };
+}
+
+/* ---------- Aufgabentyp E: ordnen ---------- */
+function maAufgabeOrdnen(stufe, nurBereiche) {
+  const erlaubt = ['laenge','masse','volumen','zeit'].filter(x => !nurBereiche || !nurBereiche.length || nurBereiche.indexOf(x) >= 0);
+  if (!erlaubt.length) return maAufgabeUm(stufe, nurBereiche);
+  const b = maWahl(erlaubt);
+  const g = MA_GROESSEN[b];
+  /* Dieselbe Korrektur wie beim Vergleichen: die Werte muessen dicht
+     beieinander liegen, sonst sortiert man nach Augenmass statt zu rechnen.
+     Deshalb ein Ankerwert und vier Varianten davon in benachbarten
+     Einheiten. */
+  const start = maRnd(Math.max(1, g.einheiten.length - 1));
+  const fenster = g.einheiten.slice(start, start + 2);
+  const anker = maBasiswert(stufe <= 1 ? 2 : 3) * fenster[0].f;
+  const werte = [];
+  let schutz = 0;
+  while (werte.length < 4 && schutz++ < 200) {
+    const u = maWahl(fenster);
+    const roh = anker * maWahl([0.4, 0.6, 0.8, 1, 1.4, 1.8, 2.5]) / u.f;
+    const z = maZulaessigerWert(roh, g);
+    if (z === null) continue;
+    const basis = z * u.f;
+    if (werte.some(w => w.basis === basis)) continue;
+    werte.push({ basis: basis, text: maGroesseText(z, u.e) });
+  }
+  const einheitenDrin = new Set(werte.map(w => w.text.replace(/^[\d.,]+\s*/, '')));
+  if (werte.length < 4 || einheitenDrin.size < 2) return maAufgabeVergleich(stufe, nurBereiche);
+  const sortiert = werte.slice().sort((x, y) => x.basis - y.basis);
+  return {
+    id: 'ma_ordnen', typ: 'ordnen', bereich: b, modus: 'ordnen',
+    anweisung: 'Tippe von klein nach groß.',
+    zeile: '',
+    karten: maMischen(werte),
+    reihenfolge: sortiert.map(w => w.text),
+    loesung: sortiert.map(w => w.text).join(' < '),
+    erklaerung: 'Erst alles in dieselbe Einheit denken, dann vergleichen.'
+  };
+}
+
+/* ---------- Aufgabentyp F: Zeitspanne ---------- */
+function maAufgabeZeitspanne(stufe) {
+  const startH = 7 + maRnd(11), startM = maWahl([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]);
+  const dauer = stufe <= 1 ? maWahl([10, 15, 20, 25, 30, 45]) : maWahl([35, 40, 50, 55, 70, 80, 95, 105, 120]);
+  const start = startH * 60 + startM;
+  const ende = start + dauer;
+  const zeit = m => String(Math.floor(m / 60) % 24) + ':' + String(m % 60).padStart(2, '0');
+  if (maRnd(2) === 0) {
+    return {
+      id: 'ma_zeitspanne', typ: 'zeitspanne', bereich: 'zeit', modus: 'zahl',
+      anweisung: 'Wie viele Minuten sind das?',
+      zeile: 'Von ' + zeit(start) + ' bis ' + zeit(ende) + ' sind <span class="ma-luecke">?</span> min',
+      einheit: 'min', antwort: dauer,
+      loesung: 'Von ' + zeit(start) + ' bis ' + zeit(ende) + ' sind ' + dauer + ' Minuten.',
+      erklaerung: 'Erst bis zur nächsten vollen Stunde, dann weiter.'
+    };
+  }
+  return {
+    id: 'ma_zeitspanne', typ: 'zeitspanne', bereich: 'zeit', modus: 'uhrzeit',
+    anweisung: 'Wann ist es zu Ende?',
+    zeile: 'Start ' + zeit(start) + ', Dauer ' + dauer + ' min &rarr; Ende <span class="ma-luecke">?</span>',
+    einheit: 'Uhr', antwort: zeit(ende),
+    loesung: 'Start ' + zeit(start) + ' plus ' + dauer + ' min = ' + zeit(ende) + ' Uhr.',
+    erklaerung: 'Eine Stunde hat 60 Minuten, nicht 100 - das ist die Stolperfalle.'
+  };
+}
+
+/* ---------- Aufgabentyp G: fehlende EINHEIT ergaenzen ----------
+   Aus Catlux-Probe 0130, Aufgabe 3: 'Ergaenze die fehlende Masszahl bzw.
+   Einheit'. Die Luecke steht hier nicht bei der Zahl, sondern bei der
+   Einheit - das prueft das Stellenwertverstaendnis von der anderen Seite. */
+function maAufgabeEinheit(stufe, nurBereiche) {
+  const a = maAufgabeUm(stufe, nurBereiche);
+  const g = MA_GROESSEN[a.bereich];
+  const richtig = a.einheit.replace(/e$/, '');
+  const echteEinheit = g.einheiten.map(x => x.e).filter(e => maEinheitText(e, a.antwort) === a.einheit)[0] || g.einheiten[0].e;
+  const andere = g.einheiten.map(x => x.e).filter(e => e !== echteEinheit);
+  const opts = maMischen([echteEinheit].concat(maMischen(andere).slice(0, Math.min(3, andere.length))));
+  return {
+    id: 'ma_einheit_' + a.bereich, typ: 'einheit', bereich: a.bereich, modus: 'wahl',
+    anweisung: 'Welche Einheit gehört in die Lücke?',
+    zeile: a.zeile.replace(/= <span class="ma-luecke">\?<\/span> .*$/, '= ' + maZahl(a.antwort) + ' <span class="ma-luecke">?</span>'),
+    optionen: opts.map(e => ({ t: maEinheitText(e, a.antwort), ok: e === echteEinheit })),
+    loesung: a.loesung, erklaerung: a.erklaerung
+  };
+}
+
+/* ---------- Aufgabentyp H: weiter / weniger als ----------
+   Aus Catlux-Probe 0131: '600 m weiter als 5 km = ?'. Umrechnen und Rechnen
+   in einem Schritt - in Proben ein Dauerbrenner und genau die Stelle, an der
+   es kippt, wenn das Umrechnen noch nicht sitzt. */
+const MA_WEITER_PAARE = [
+  { b:'laenge', gross:'km', klein:'m', f:1000 },
+  { b:'laenge', gross:'m', klein:'cm', f:100 },
+  { b:'masse', gross:'kg', klein:'g', f:1000 },
+  { b:'volumen', gross:'l', klein:'ml', f:1000 },
+  { b:'geld', gross:'€', klein:'ct', f:100 }
+];
+function maAufgabeWeiter(stufe, nurBereiche) {
+  const pool = (nurBereiche && nurBereiche.length) ? MA_WEITER_PAARE.filter(x => nurBereiche.indexOf(x.b) >= 0) : MA_WEITER_PAARE;
+  if (!pool.length) return maAufgabeUm(stufe, nurBereiche);
+  const p = maWahl(pool);
+  const grossZahl = 1 + maRnd(9);
+  /* Kommaschreibweise nur bei Laengen und Geldwerten - bei Massen und
+     Volumina ist sie in Jahrgangsstufe 5 nicht vorgesehen (M5 LB5). Das war
+     in der ersten Fassung nicht geprueft: '2,7 kg' waere durchgerutscht. */
+  const kommaErlaubt = MA_GROESSEN[p.b] && MA_GROESSEN[p.b].komma;
+  const kommaTeil = (stufe >= 2 && kommaErlaubt && maRnd(2) === 0) ? maWahl([1,2,3,4,5,6,7,8,9]) : 0;
+  const basis = grossZahl * p.f + kommaTeil * (p.f / 10);
+  const schrittKlein = Math.round(p.f >= 1000 ? maWahl([100,200,300,400,500,600,700,800,900]) : maWahl([10,20,30,40,50,60,70,80,90]));
+  const weiter = maRnd(2) === 0;
+  const antwort = weiter ? basis + schrittKlein : basis - schrittKlein;
+  if (antwort <= 0) return maAufgabeUm(stufe, nurBereiche);
+  const grossText = kommaTeil ? maZahl(grossZahl + kommaTeil / 10) : maZahl(grossZahl);
+  return {
+    id: 'ma_weiter', typ: 'weiter', bereich: p.b, modus: 'zahl',
+    anweisung: weiter ? 'Rechne zusammen. Antwort in ' + p.klein + '.' : 'Rechne ab. Antwort in ' + p.klein + '.',
+    zeile: schrittKlein + ' ' + p.klein + (weiter ? ' mehr als ' : ' weniger als ') + grossText + ' ' + p.gross + ' = <span class="ma-luecke">?</span> ' + p.klein,
+    einheit: p.klein, antwort: antwort,
+    loesung: schrittKlein + ' ' + p.klein + (weiter ? ' mehr als ' : ' weniger als ') + grossText + ' ' + p.gross + ' = ' + maZahl(antwort) + ' ' + p.klein,
+    erklaerung: 'Erst umrechnen: ' + grossText + ' ' + p.gross + ' = ' + maZahl(basis) + ' ' + p.klein + '. Dann ' + (weiter ? 'plus ' : 'minus ') + schrittKlein + '.'
+  };
+}
+
+/* ---------- Aufgabentyp I: einfache Bruchteile ----------
+   Aus Catlux-Probe 0131 und ausdruecklich im Lehrplan (M5 LB5: 'verwenden
+   zur genauen Groessenangabe gebraeuchliche, einfache Bruchzahlen'). Eine
+   halbe Stunde und eine Viertelstunde braucht er ohnehin jeden Tag. */
+const MA_BRUCH_PAARE = [
+  { b:'laenge', gross:'km', klein:'m', f:1000 },
+  { b:'zeit', gross:'h', klein:'min', f:60 },
+  { b:'volumen', gross:'l', klein:'ml', f:1000 },
+  { b:'masse', gross:'kg', klein:'g', f:1000 },
+  { b:'geld', gross:'€', klein:'ct', f:100 }
+];
+const MA_BRUECHE = [
+  { t:'1/2', w:0.5 }, { t:'1/4', w:0.25 }, { t:'3/4', w:0.75 },
+  { t:'1 1/2', w:1.5 }, { t:'1 1/4', w:1.25 }, { t:'2 1/2', w:2.5 }
+];
+function maAufgabeBruch(stufe, nurBereiche) {
+  const pool = (nurBereiche && nurBereiche.length) ? MA_BRUCH_PAARE.filter(x => nurBereiche.indexOf(x.b) >= 0) : MA_BRUCH_PAARE;
+  if (!pool.length) return maAufgabeUm(stufe, nurBereiche);
+  const p = maWahl(pool);
+  const kand = MA_BRUECHE.filter(b => (stufe >= 2 || b.w < 1) && Math.abs(b.w * p.f - Math.round(b.w * p.f)) < 1e-9);
+  if (!kand.length) return maAufgabeUm(stufe, nurBereiche);
+  const br = maWahl(kand);
+  const antwort = Math.round(br.w * p.f);
+  return {
+    id: 'ma_bruch', typ: 'bruch', bereich: p.b, modus: 'zahl',
+    anweisung: 'Wie viel ist das?',
+    zeile: br.t + ' ' + p.gross + ' = <span class="ma-luecke">?</span> ' + p.klein,
+    einheit: p.klein, antwort: antwort,
+    loesung: br.t + ' ' + p.gross + ' = ' + antwort + ' ' + p.klein,
+    erklaerung: '1 ' + p.gross + ' = ' + p.f + ' ' + p.klein + '. Davon ' + br.t + '.'
+  };
+}
+
+/* Welche Aufgabenarten auf welcher Stufe. Umrechnen ist das Kernstueck und
+   immer dabei; die Bezugsgroessen kommen von Anfang an mit, weil Vorstellung
+   und Rechnung sich gegenseitig stuetzen. */
+/* Die Groessenbereiche kommen in der Reihenfolge des Buches dazu
+   (Lernstufen 5, Kapitel 4: Geld S. 81, Laenge S. 83, Masse S. 87,
+   Volumen S. 89, Zeit S. 91). So passt die App zu dem, was im Unterricht
+   gerade dran war - und er erkennt die Reihenfolge wieder. */
+const MA_GR_REIHENFOLGE = ['geld', 'laenge', 'masse', 'volumen', 'zeit'];
+function maGrPlan(runde) {
+  const stufe = Math.min(3, Math.max(1, Math.floor(runde / 2) + 1));
+  const anzahlBereiche = Math.min(MA_GR_REIHENFOLGE.length, 2 + Math.floor(runde / 2));
+  const bereiche = MA_GR_REIHENFOLGE.slice(0, anzahlBereiche);
+  const arten = ['um', 'um', 'bezug', 'vergleich'];
+  if (stufe >= 2) arten.push('gemischt', 'bruch', 'einheit');
+  if (stufe >= 2 && bereiche.indexOf('zeit') >= 0) arten.push('zeitspanne');
+  if (stufe >= 3) arten.push('ordnen', 'weiter', 'um');
+  return { stufe: stufe, arten: arten, bereiche: bereiche };
+}
+function maGrAufgabe(runde) {
+  const plan = maGrPlan(runde);
+  const art = maWahl(plan.arten);
+  if (art === 'bezug') return maAufgabeBezug(plan.bereiche);
+  if (art === 'vergleich') return maAufgabeVergleich(plan.stufe, plan.bereiche);
+  if (art === 'gemischt') return maAufgabeGemischt(plan.stufe, plan.bereiche);
+  if (art === 'ordnen') return maAufgabeOrdnen(plan.stufe, plan.bereiche);
+  if (art === 'zeitspanne') return maAufgabeZeitspanne(plan.stufe);
+  if (art === 'einheit') return maAufgabeEinheit(plan.stufe, plan.bereiche);
+  if (art === 'weiter') return maAufgabeWeiter(plan.stufe, plan.bereiche);
+  if (art === 'bruch') return maAufgabeBruch(plan.stufe, plan.bereiche);
+  return maAufgabeUm(plan.stufe, plan.bereiche);
+}
+/* ---------- Die Lektion: fuenf Minuten, wie bei den Sondermissionen ----------
+   Bewusst dasselbe Format wie Vokabeltest und Grammatik-Trainer. Er kennt
+   die Uhr oben links, den Stand daneben und den Schluss-Knopf schon - eine
+   neue Bedienlogik pro Fach waere unnoetiger Ballast. */
+function maLektion(bereichId) {
+  if (bereichId !== 'groessen') { renderWerkstatt(); return; }
+  maGrLektion();
+}
+function maGrLektion() {
+  pauseBuilder();
+  session = { special: 'mathe', history: [], current: null, errorFree: true };
+  const runde = (progress.maRunden && progress.maRunden.groessen) || 0;
+  const plan = maGrPlan(runde);
+  const ende = Date.now() + MA_DAUER_SEC * 1000;
+  let gesamt = 0, treffer = 0;
+  const proTyp = {};
+  const fehler = [];
+  let aufgabe = null, eingabe = '', schonFalsch = false, ordnenIdx = 0;
+
+  function restSek() { return Math.max(0, Math.round((ende - Date.now()) / 1000)); }
+  function zeitText() { const s = restSek(); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
+  if (maTimerId) clearInterval(maTimerId);
+  maTimerId = setInterval(() => {
+    const el = document.getElementById('maZeit');
+    if (el) { el.textContent = zeitText(); el.classList.toggle('knapp', restSek() <= 30); }
+    if (restSek() <= 0) { clearInterval(maTimerId); maTimerId = null; beenden(); }
+  }, 1000);
+  function beenden() {
+    if (maTimerId) { clearInterval(maTimerId); maTimerId = null; }
+    session = null;
+    maGrBilanz(runde, gesamt, treffer, proTyp, fehler);
+  }
+
+  function naechste() {
+    aufgabe = maGrAufgabe(runde);
+    eingabe = ''; schonFalsch = false; ordnenIdx = 0;
+    zeichne();
+  }
+
+  function werten(ok) {
+    gesamt++;
+    if (ok) treffer++;
+    const ty = aufgabe.typ;
+    proTyp[ty] = proTyp[ty] || { n: 0, ok: 0 };
+    proTyp[ty].n++; if (ok) proTyp[ty].ok++;
+    /* Gewertet wird der erste Versuch - dieselbe Zaehlweise wie ueberall
+       sonst in der App, damit die Quoten vergleichbar bleiben. */
+    maReview(aufgabe.id, ok);
+    if (!ok) fehler.push({ satz: aufgabe.loesung, erklaerung: aufgabe.erklaerung });
+    const warten = ok ? 750 : 2200;
+    if (restSek() <= 0) { setTimeout(beenden, warten); return; }
+    setTimeout(naechste, warten);
+  }
+
+  function rueckmeldung(ok) {
+    const f = document.getElementById('maFeedback');
+    if (!f) return;
+    f.className = 'vt-rueckmeldung ' + (ok ? 'gut' : 'schlecht');
+    f.innerHTML = ok
+      ? '<span class="ma-gut">Richtig.</span>'
+      : '<span class="ma-loesung">' + aufgabe.loesung + '</span><span class="vt-zusatz">' + aufgabe.erklaerung + '</span>';
+  }
+
+  function zeichne() {
+    const mitDoppelpunkt = aufgabe.modus === 'uhrzeit';
+    const mitKomma = aufgabe.modus === 'zahl' && MA_GROESSEN[aufgabe.bereich] && MA_GROESSEN[aufgabe.bereich].komma;
+    let eingabeBlock = '';
+    if (aufgabe.modus === 'zahl' || aufgabe.modus === 'uhrzeit') {
+      eingabeBlock = `<div class='ma-anzeige' id='maAnzeige'><span id='maEingabe'></span><span class='ma-einheit'>${aufgabe.einheit || ''}</span></div>` + maZahlenfeld(mitKomma, mitDoppelpunkt);
+    } else if (aufgabe.modus === 'wahl') {
+      eingabeBlock = `<div class='options single-col' id='maOpts'>${aufgabe.optionen.map((o,i) => `<button class='opt-btn' data-i='${i}'>${o.t}</button>`).join('')}</div>`;
+    } else if (aufgabe.modus === 'ordnen') {
+      eingabeBlock = `<div class='ma-karten' id='maKarten'>${aufgabe.karten.map((k,i) => `<button class='ma-karte' data-t='${k.text}'>${k.text}</button>`).join('')}</div>`;
+    }
+    app.innerHTML = `
+      ${renderMissionHeader()}
+      <div class='session-shell'>
+        <div class='vt-leiste'>
+          <span class='vt-uhr' id='maZeit'>${zeitText()}</span>
+          <span class='vt-stand'>${treffer} von ${gesamt} richtig</span>
+          <button class='secondary-btn vt-stop' id='maStop'>Schluss</button>
+        </div>
+        <div class='card vt-karte'>
+          <div class='q-topic'>Größen · Stufe ${plan.stufe}</div>
+          <div class='vt-anweisung'>${aufgabe.anweisung}</div>
+          <div class='ma-zeile'>${aufgabe.zeile}</div>
+          ${eingabeBlock}
+          <div class='vt-rueckmeldung' id='maFeedback'></div>
+          ${maLeiter(aufgabe.bereich, plan.stufe <= 1)}
+          ${maNebenblatt()}
+        </div>
+      </div>`;
+    document.getElementById('maStop').onclick = beenden;
+    const blatt = app.querySelector('.ma-blatt');
+    if (blatt) blatt.addEventListener('toggle', () => { if (blatt.open) maBlattStarten(); });
+
+    if (aufgabe.modus === 'zahl' || aufgabe.modus === 'uhrzeit') {
+      const feld = document.getElementById('maEingabe');
+      const zeigen = () => { feld.textContent = eingabe || '\u2013'; };
+      zeigen();
+      app.querySelectorAll('.ma-taste').forEach(b => b.onclick = () => {
+        const z = b.dataset.z;
+        if (z === '\u232b') eingabe = eingabe.slice(0, -1);
+        else if (eingabe.length < 12) {
+          if ((z === ',' || z === ':') && eingabe.indexOf(z) >= 0) return;
+          if ((z === ',' || z === ':') && eingabe === '') return;
+          eingabe += z;
+        }
+        zeigen();
+      });
+      document.getElementById('maOk').onclick = () => {
+        if (eingabe === '') return;
+        const ok = aufgabe.modus === 'uhrzeit'
+          ? eingabe.replace(/^0/, '') === String(aufgabe.antwort).replace(/^0/, '')
+          : maZahlPasst(eingabe, aufgabe.antwort);
+        app.querySelectorAll('.ma-taste, .ma-ok').forEach(x => x.disabled = true);
+        document.getElementById('maAnzeige').classList.add(ok ? 'gut' : 'schlecht');
+        rueckmeldung(ok);
+        werten(ok);
+      };
+    } else if (aufgabe.modus === 'wahl') {
+      app.querySelectorAll('#maOpts .opt-btn').forEach(b => b.onclick = () => {
+        if (b.disabled) return;
+        const o = aufgabe.optionen[+b.dataset.i];
+        if (o.ok) {
+          b.classList.add('correct');
+          app.querySelectorAll('#maOpts .opt-btn').forEach(x => x.disabled = true);
+          rueckmeldung(!schonFalsch);
+          werten(!schonFalsch);
+        } else {
+          schonFalsch = true; b.classList.add('retry'); b.disabled = true;
+          const f = document.getElementById('maFeedback');
+          if (f) f.innerHTML = '<span class="vt-zusatz">' + aufgabe.erklaerung + '</span>';
+        }
+      });
+    } else if (aufgabe.modus === 'ordnen') {
+      app.querySelectorAll('#maKarten .ma-karte').forEach(b => b.onclick = () => {
+        if (b.disabled) return;
+        if (b.dataset.t === aufgabe.reihenfolge[ordnenIdx]) {
+          b.classList.add('correct'); b.disabled = true;
+          b.insertAdjacentHTML('beforeend', `<span class='ma-platz'>${ordnenIdx + 1}</span>`);
+          ordnenIdx++;
+          if (ordnenIdx >= aufgabe.reihenfolge.length) {
+            app.querySelectorAll('#maKarten .ma-karte').forEach(x => x.disabled = true);
+            rueckmeldung(!schonFalsch); werten(!schonFalsch);
+          }
+        } else {
+          /* Lehre aus den Denkspielen (v73): nach einem Fehler muss es
+             weitergehen. Hier wird die richtige Reihenfolge gezeigt und die
+             Aufgabe abgeschlossen - nicht endlos weiterraten lassen. */
+          schonFalsch = true;
+          app.querySelectorAll('#maKarten .ma-karte').forEach(x => x.disabled = true);
+          rueckmeldung(false); werten(false);
+        }
+      });
+    }
+  }
+
+  naechste();
+}
+
+const MA_TYP_NAME = { um: 'Umrechnen', gemischt: 'Gemischte Schreibweise', bezug: 'Welche Einheit passt?',
+  vergleich: 'Vergleichen', ordnen: 'Ordnen', zeitspanne: 'Zeitspannen', einheit: 'Fehlende Einheit',
+  weiter: 'Mehr und weniger als', bruch: 'Bruchteile' };
+
+function maGrBilanz(runde, gesamt, treffer, proTyp, fehler) {
+  const quote = gesamt ? Math.round(treffer / gesamt * 100) : 0;
+  progress.maRunden = progress.maRunden || {};
+  /* Wie im Grammatik-Trainer seit v85: aufgestiegen wird nach Leistung,
+     nicht nach Anzahl der Durchlaeufe. Abgestiegen wird nie. */
+  const aufgestiegen = gesamt >= 5 && quote >= 65;
+  if (aufgestiegen) progress.maRunden.groessen = (progress.maRunden.groessen || 0) + 1;
+  const neueRunde = progress.maRunden.groessen || 0;
+  const naechsterPlan = maGrPlan(neueRunde);
+  let lohn = null;
+  if (gesamt >= 8) { try { lohn = maBelohnung('groessen'); } catch (e) {} }
+  try {
+    progress.session_log = progress.session_log || [];
+    progress.session_log.push({ d: dayStamp(0), t: Date.now(), ms: MA_DAUER_SEC*1000, n: gesamt, ok: treffer,
+      err: gesamt - treffer, steps: gesamt, neu: 0, isl: 'mathe', art: 'mathe_groessen', done: true });
+    while (progress.session_log.length > SESSION_LOG_MAX) progress.session_log.shift();
+  } catch (e) {}
+  try { saveProgress(); } catch (e) {}
+  const spruch = gesamt === 0 ? 'Nichts gerechnet – beim nächsten Mal einfach loslegen.'
+    : quote >= 90 ? 'Das sitzt. Umrechnen ist für dich kein Thema mehr.'
+    : quote >= 75 ? 'Stark. Die Leiter hast du im Kopf, der Rest ist Übung.'
+    : quote >= 50 ? 'Guter Stand. Morgen dieselbe Runde – dann wird es Automatik.'
+    : 'Noch wackelig, und das ist normal. Die Umrechnungsleiter bleibt offen.';
+  app.innerHTML = `
+    ${renderMissionHeader()}
+    <div class='session-shell'>
+      <div class='card vt-bilanz-karte'>
+        <h2 style='margin:0 0 2px;'>Fünf Minuten Größen</h2>
+        <div class='vt-quote'>${quote}%</div>
+        <div class='map-sub' style='margin:0 0 12px;'>${treffer} von ${gesamt} Aufgaben auf Anhieb richtig</div>
+        <p class='vt-spruch'>${spruch}</p>
+        ${lohn && !lohn.schonHeute && lohn.gems ? `<div class='vt-lohn'>+${lohn.gems} 💎 und +${Math.round(lohn.sec/60)} Min Spielzeit</div>` : ''}
+        ${Object.keys(proTyp).length ? `<div class='vt-block-titel'>Nach Aufgabenart</div><div class='gt-balken'>${Object.keys(proTyp).map(k => { const p = proTyp[k]; const q = Math.round(p.ok/p.n*100); return `<div class='gt-balken-zeile'><span>${MA_TYP_NAME[k]||k}</span><span class='gt-balken-spur'><span class='gt-balken-fuell' style='width:${q}%'></span></span><span class='gt-balken-zahl'>${q}%</span></div>`; }).join('')}</div>` : ''}
+        ${fehler.length ? `<div class='vt-block-titel'>Nochmal anschauen</div><div class='gt-fehlerliste'>${fehler.slice(0,8).map(f => `<div class='gt-fehler'><span class='gt-fehler-satz'>${f.satz}</span><span class='vt-zusatz'>${f.erklaerung}</span></div>`).join('')}</div>` : ''}
+        <div class='map-sub' style='margin-top:12px;font-size:.85rem;'>Nächster Durchlauf: Stufe ${naechsterPlan.stufe} von 3, dabei ${naechsterPlan.bereiche.map(b => MA_GROESSEN[b].titel).join(', ')}${gesamt >= 5 && !aufgestiegen ? ' – wir bleiben auf dieser Stufe, bis sie sicher sitzt.' : ''}</div>
+        <button class='primary-btn' id='maNochmal' style='margin-top:14px;'>Nochmal 5 Minuten</button>
+        <button class='secondary-btn' id='maZurWerkstatt' style='margin-top:8px;'>Zurück zur Werkstatt</button>
+      </div>
+    </div>`;
+  document.getElementById('maNochmal').onclick = () => maGrLektion();
+  document.getElementById('maZurWerkstatt').onclick = renderWerkstatt;
+}
+/* ---------- Fach-Umschalter ---------- */
+const MA_DAUER_SEC = 300;
+let maTimerId = null;
+function aktivesFach() { return progress.fach === 'ma' ? 'ma' : 'en'; }
+function fachLeiste() {
+  const f = aktivesFach();
+  return `<div class='fach-leiste'>
+    <button class='fach-tab ${f === 'en' ? 'an' : ''}' data-fach='en'>Englisch</button>
+    <button class='fach-tab ${f === 'ma' ? 'an' : ''}' data-fach='ma'>Mathe</button>
+  </div>`;
+}
+/* Einstiegspunkt des Lernen-Tabs: entscheidet nach Fach. Die Inseln bleiben
+   damit unberuehrt Englisch (Joules Vorgabe). */
+function renderLernen() {
+  if (aktivesFach() === 'ma') renderWerkstatt(); else renderMap();
+}
+function fachWechseln(f) {
+  progress.fach = f === 'ma' ? 'ma' : 'en';
+  try { saveProgress(); } catch (e) {}
+  renderLernen();
+}
+
+/* ---------- Die Werkstatt: Mathes eigene Buehne ----------
+   Bewusst ein Raster, keine zweite Weltkarte. Zwei Gruende: die Insel soll
+   Englischs Erkennungszeichen bleiben, und eine Karte waere ein Vielfaches
+   des Aufwands fuer denselben Zweck. */
+function renderWerkstatt() {
+  pauseBuilder();
+  const karten = MA_BEREICHE.map(b => {
+    const fort = maBereichFortschritt(b.id);
+    if (!b.fertig) {
+      return `<div class='werkbank gesperrt'>
+        <div class='wb-lb'>${b.lb}</div>
+        <div class='wb-titel'>${b.titel}</div>
+        <div class='wb-text'>${b.text}</div>
+        <div class='wb-bald'>kommt noch</div>
+      </div>`;
+    }
+    return `<button class='werkbank' data-ma='${b.id}'>
+      <div class='wb-lb'>${b.lb}</div>
+      <div class='wb-titel'>${b.titel}</div>
+      <div class='wb-text'>${b.text}</div>
+      <div class='wb-balken'><span style='width:${fort.pct}%'></span></div>
+      <div class='wb-stand'>${fort.sitzt} von ${fort.gesamt} Fertigkeiten sitzen sicher</div>
+    </button>`;
+  }).join('');
+  app.innerHTML = `
+    ${renderNav('learn')}
+    ${renderTopbar()}
+    ${fachLeiste()}
+    <h2 style='margin:4px 0 2px;'>Werkstatt</h2>
+    <p class='map-sub' style='margin:0 0 12px;'>Edelsteine, Bauzeit und Spielzeit sind dieselben wie bei Englisch - egal, wo du sie holst.</p>
+    <div class='werkbank-raster'>${karten}</div>
+  `;
+  app.querySelectorAll('[data-ma]').forEach(b => b.onclick = () => maLektion(b.dataset.ma));
+  attachNav();
+}
+
+/* ---------- Zahlenfeld ----------
+   Ersetzt die iPad-Tastatur vollstaendig: grosse Tasten, keine
+   Autokorrektur, kein Keyboard, das die Aufgabe verdeckt. */
+function maZahlenfeld(mitKomma, mitDoppelpunkt) {
+  const reihen = [['7','8','9'],['4','5','6'],['1','2','3']];
+  const letzte = ['0'];
+  if (mitKomma) letzte.push(',');
+  if (mitDoppelpunkt) letzte.push(':');
+  letzte.push('\u232b');
+  return `<div class='ma-pad'>
+    ${reihen.map(r => `<div class='ma-pad-reihe'>${r.map(z => `<button class='ma-taste' data-z='${z}'>${z}</button>`).join('')}</div>`).join('')}
+    <div class='ma-pad-reihe'>${letzte.map(z => `<button class='ma-taste ${z === '\u232b' ? 'weg' : ''}' data-z='${z}'>${z}</button>`).join('')}</div>
+    <button class='ma-ok' id='maOk'>Fertig</button>
+  </div>`;
+}
+
+/* ---------- Umrechnungsleiter ----------
+   Das Nachschlagewerk zur Aufgabe. Wie der Spickzettel im
+   Grammatik-Trainer: in der Einfuehrung offen, spaeter zum Aufklappen. */
+function maLeiter(bereich, offen) {
+  const g = MA_GROESSEN[bereich] || MA_GROESSEN.laenge;
+  const e = g.einheiten;
+  let zeilen = '';
+  for (let i = e.length - 1; i > 0; i--) {
+    const faktor = e[i].f / e[i - 1].f;
+    zeilen += `<tr><td>1 ${e[i].e}</td><td class='ma-leiter-pfeil'>= ${maZahl(faktor)} \u00d7</td><td>${maEinheitText(e[i-1].e, faktor)}</td></tr>`;
+  }
+  return `<details class='ma-leiter' ${offen ? 'open' : ''}>
+    <summary>Umrechnen: ${g.titel}</summary>
+    <table class='ma-leiter-tabelle'>${zeilen}</table>
+    <div class='ma-leiter-hinweis'>Kleinere Einheit &rarr; mal nehmen. Groessere Einheit &rarr; teilen.</div>
+  </details>`;
+}
+
+/* ---------- Nebenrechenflaeche (Stift, Stufe 1) ----------
+   Gezeichnet wird nur das Denken daneben - die Antwort kommt weiter uebers
+   Zahlenfeld. Keine Handschrifterkennung: eine abgelehnte, richtig
+   geschriebene 7 waere genau die Frustration, die wir bei der
+   Spracherkennung zwei Versionen lang rausgeraeumt haben.
+   Pointer Events statt Touch Events, damit der Apple Pencil Druck und
+   Neigung mitliefert; touch-action:none verhindert das Mitscrollen der
+   Seite beim Zeichnen. */
+function maNebenblatt() {
+  return `<details class='ma-blatt'>
+    <summary>Nebenrechnung</summary>
+    <div class='ma-blatt-leiste'>
+      <button class='ma-blatt-knopf an' data-werkzeug='stift'>Stift</button>
+      <button class='ma-blatt-knopf' data-werkzeug='radierer'>Radierer</button>
+      <button class='ma-blatt-knopf' id='maBlattZurueck'>Zurück</button>
+      <button class='ma-blatt-knopf' id='maBlattLeer'>Leeren</button>
+    </div>
+    <canvas class='ma-blatt-flaeche' id='maBlattCanvas'></canvas>
+  </details>`;
+}
+function maBlattStarten() {
+  const cv = document.getElementById('maBlattCanvas');
+  if (!cv || cv.dataset.bereit) return;
+  cv.dataset.bereit = '1';
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  function groesse() {
+    const b = cv.clientWidth || 320;
+    const h = 220;
+    cv.style.height = h + 'px';
+    const alt = cv.width ? cv.toDataURL() : null;
+    cv.width = Math.round(b * dpr); cv.height = Math.round(h * dpr);
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    if (alt) { const img = new Image(); img.onload = () => ctx.drawImage(img, 0, 0, b, h); img.src = alt; }
+  }
+  groesse();
+  const ctx = cv.getContext('2d');
+  let werkzeug = 'stift';
+  const schritte = [];
+  let malt = false;
+  function sichern() { try { schritte.push(cv.toDataURL()); while (schritte.length > 12) schritte.shift(); } catch (e) {} }
+  function punkt(ev) {
+    const r = cv.getBoundingClientRect();
+    return { x: ev.clientX - r.left, y: ev.clientY - r.top, druck: ev.pressure && ev.pressure > 0 ? ev.pressure : 0.5 };
+  }
+  cv.addEventListener('pointerdown', ev => {
+    if (ev.pointerType === 'touch' && ev.isPrimary === false) return;
+    sichern(); malt = true; cv.setPointerCapture(ev.pointerId);
+    const p = punkt(ev);
+    ctx.globalCompositeOperation = werkzeug === 'radierer' ? 'destination-out' : 'source-over';
+    ctx.strokeStyle = '#1C3D4A';
+    ctx.lineWidth = werkzeug === 'radierer' ? 22 : 1 + p.druck * 3.5;
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + 0.1, p.y); ctx.stroke();
+    ev.preventDefault();
+  });
+  cv.addEventListener('pointermove', ev => {
+    if (!malt) return;
+    const p = punkt(ev);
+    ctx.lineWidth = werkzeug === 'radierer' ? 22 : 1 + p.druck * 3.5;
+    ctx.lineTo(p.x, p.y); ctx.stroke();
+    ev.preventDefault();
+  });
+  ['pointerup','pointercancel','pointerleave'].forEach(n => cv.addEventListener(n, () => { malt = false; }));
+  const leiste = cv.parentElement;
+  leiste.querySelectorAll('[data-werkzeug]').forEach(b => b.onclick = () => {
+    werkzeug = b.dataset.werkzeug;
+    leiste.querySelectorAll('[data-werkzeug]').forEach(x => x.classList.toggle('an', x === b));
+  });
+  const zurueck = document.getElementById('maBlattZurueck');
+  if (zurueck) zurueck.onclick = () => {
+    const d = schritte.pop();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (d) { const img = new Image(); img.onload = () => ctx.drawImage(img, 0, 0, cv.clientWidth, 220); img.src = d; }
+  };
+  const leer = document.getElementById('maBlattLeer');
+  if (leer) leer.onclick = () => { sichern(); ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, cv.width, cv.height); };
+}
+
+/* ---------- Belohnung: bucht in dieselben Konten wie Englisch ---------- */
+function maBelohnung(bereichId) {
+  progress.maLohnTag = progress.maLohnTag || {};
+  const heute = dayStamp(0);
+  if (progress.maLohnTag[bereichId] === heute) return { gems: 0, sec: 0, schonHeute: true };
+  const gems = 3, sec = 180;
+  progress.gems = (progress.gems || 0) + gems;
+  progress.bauweltZeitguthabenSec = Math.min(BAUWELT_ZEIT_CAP_SEC, (progress.bauweltZeitguthabenSec || 0) + sec);
+  progress.maLohnTag[bereichId] = heute;
+  maStreakBuchen();
+  try { saveProgress(); } catch (e) {}
+  return { gems: gems, sec: sec, schonHeute: false };
+}
+/* Der Streak gilt fachuebergreifend - ein Tag geuebt ist ein Tag geuebt.
+   BEKANNTE DOPPELUNG: die englische Sitzung hat dieselbe Logik inline in
+   ihrer Abschlussroutine. Bewusst nicht zusammengefuehrt, um am
+   funktionierenden Englisch-Pfad nichts zu riskieren; beim naechsten
+   Anfassen dort gehoert es vereinigt. */
+function maStreakBuchen() {
+  const heute = new Date().toDateString();
+  if (progress.last_active_date === heute) return;
+  if (!progress.last_active_date) { progress.streak_count = 1; }
+  else {
+    const diff = Math.round((new Date(heute) - new Date(progress.last_active_date)) / 86400000);
+    if (diff === 1) progress.streak_count = (progress.streak_count || 0) + 1;
+    else if (diff === 2 && (progress.streak_freezes_available || 0) > 0) {
+      progress.streak_freezes_available--; progress.streak_count = (progress.streak_count || 0) + 1;
+    } else progress.streak_count = 1;
+  }
+  progress.last_active_date = heute;
 }
 function renderProfile() {
   pauseBuilder();
@@ -16466,6 +17435,7 @@ function renderMap() {
   app.innerHTML = `
     ${renderNav('learn')}
     ${renderTopbar()}
+    ${fachLeiste()}
 
     <!-- v21 (game_design.md Abschnitt 28.1): durchgehende Kartenflaeche ueber
          die volle Breite, die drei Info-Karten liegen als Overlay darueber
@@ -16820,7 +17790,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v87';
+const APP_VERSION = 'v88';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
