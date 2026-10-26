@@ -237,6 +237,13 @@ button{font-family:var(--font-main); letter-spacing:var(--letter-spacing-base); 
 .sa-frage{font-size:1.1rem;font-weight:700;margin:6px 0 10px;}
 .sa-rechnung{font-size:1.25rem;font-weight:700;text-align:center;color:#8A6A12;margin-bottom:8px;}
 .sa-vorlesen{margin-top:10px;padding:8px 14px;font-size:.9rem;border:1px solid #D8C3A5;border-radius:9px;background:#FFF;cursor:pointer;}
+.thema-liste{display:flex;flex-direction:column;gap:8px;}
+.thema-karte{display:block;text-align:left;background:#FFF;border:2px solid #D8C3A5;border-radius:12px;padding:11px 14px;cursor:pointer;font:inherit;color:inherit;position:relative;}
+.thema-karte.gemischt{border-color:#C8A063;background:#FFF8E6;}
+.thema-karte:active{transform:translateY(1px);}
+.th-titel{font-size:1.05rem;font-weight:700;}
+.th-text{font-size:.84rem;color:#8A8A8A;margin-top:1px;}
+.th-stufe{position:absolute;top:11px;right:14px;font-size:.78rem;font-weight:700;color:#9A7B4F;}
 .ma-klein{display:block;font-size:.85rem;font-weight:600;color:#8A8A8A;margin-top:4px;}
 .da-tabelle{margin:0 auto;border-collapse:collapse;font-size:1rem;}
 .da-tabelle td{padding:4px 10px;border-bottom:1px solid #EEE;text-align:left;}
@@ -251,6 +258,9 @@ button{font-family:var(--font-main); letter-spacing:var(--letter-spacing-base); 
 .pm-knopf:active{transform:translateY(1px);}
 .pm-wahl{display:flex;gap:8px;flex-wrap:wrap;}
 .pm-wahl-spalte{flex-direction:column;}
+.pm-gruppe{border:1px solid #E4DCCF;border-radius:10px;padding:6px 10px;margin-bottom:6px;}
+.pm-gruppe summary{cursor:pointer;font-weight:600;font-size:.92rem;padding:3px 0;}
+.pm-gruppe .pm-wahl{margin-top:6px;}
 .pm-wahl button[data-an]{outline:2px solid var(--water-mid,#4A90A4);font-weight:700;}
 .pm-hinweis{font-size:.85rem;color:#A33;min-height:1.1em;}
 .pm-stand{align-items:stretch;background:#FFF8E6;}
@@ -5616,12 +5626,33 @@ function attachNav() {
    wenn er ihn ueberspringt. Druck erzeugt bei LRS zuverlaessig Vermeidung,
    und diese App ist das einzige Lernwerkzeug, das er freiwillig anfasst.
    ========================================================================= */
-const PM_THEMEN = [
-  { id: 'pronomen', label: 'Pronomen', kurz: 'Pronomen', art: 'gt' },
-  { id: 'tobe', label: 'to be (am/is/are)', kurz: 'to be', art: 'gt' },
-  { id: 'beides', label: 'Pronomen + to be gemischt', kurz: 'Beides gemischt', art: 'gt' },
-  { id: 'vokabeln', label: 'Vokabeln (Unit waehlbar)', kurz: 'Vokabeln', art: 'vt' }
+const PM_THEMEN_EN = [
+  { id: 'pronomen', label: 'Pronomen', kurz: 'Pronomen', art: 'gt', gruppe: 'Englisch' },
+  { id: 'tobe', label: 'to be (am/is/are)', kurz: 'to be', art: 'gt', gruppe: 'Englisch' },
+  { id: 'beides', label: 'Pronomen + to be gemischt', kurz: 'Beides gemischt', art: 'gt', gruppe: 'Englisch' },
+  { id: 'vokabeln', label: 'Vokabeln (Unit wählbar)', kurz: 'Vokabeln', art: 'vt', gruppe: 'Englisch' }
 ];
+/* v91 (Joules Auftrag 26.10.2026): der Probenvorbereitungs-Modus gilt jetzt
+   auch fuer Mathe. Die Liste wird aus den Werkbaenken und ihren Themen
+   erzeugt, damit sie nie auseinanderlaeuft - ein neues Thema taucht hier
+   automatisch auf. Pro Kapitel gibt es einen Eintrag fuers ganze Kapitel
+   plus einen je Thema. */
+function pmThemenMathe() {
+  const liste = [];
+  MA_BEREICHE.forEach(b => {
+    if (!b.fertig) return;
+    liste.push({ id: 'ma:' + b.id, label: b.titel + ' (ganzes Kapitel)', kurz: b.titel, art: 'ma',
+      bereich: b.id, thema: null, gruppe: 'Mathe · ' + b.titel });
+    (MA_THEMEN[b.id] || []).forEach(th => {
+      liste.push({ id: 'ma:' + b.id + ':' + th.id, label: th.name, kurz: th.name, art: 'ma',
+        bereich: b.id, thema: th.id, gruppe: 'Mathe · ' + b.titel });
+    });
+  });
+  return liste;
+}
+function pmAlleThemen() { return PM_THEMEN_EN.concat(pmThemenMathe()); }
+/* Rueckwaertskompatibel: bestehender Code greift auf PM_THEMEN zu. */
+Object.defineProperty(window, 'PM_THEMEN', { get: pmAlleThemen, configurable: true });
 const PM_DAUERN = [3, 5, 7, 10, 14];
 
 function pmHeute() {
@@ -5633,7 +5664,7 @@ function pmTageDiff(a, b) {
   if (isNaN(x) || isNaN(y)) return 0;
   return Math.round((y - x) / 86400000);
 }
-function pmThema(id) { for (let i=0;i<PM_THEMEN.length;i++) if (PM_THEMEN[i].id === id) return PM_THEMEN[i]; return null; }
+function pmThema(id) { const a = pmAlleThemen(); for (let i=0;i<a.length;i++) if (a[i].id === id) return a[i]; return null; }
 
 /* Gibt den laufenden Modus samt Tagesnummer zurueck - oder null. Schaltet
    sich nach dem letzten Tag selbst ab und merkt sich das fuer einen
@@ -5671,7 +5702,8 @@ function pmPlanTag(p, nr) {
 
 function pmBlockStarten(themaId) {
   const th = pmThema(themaId);
-  if (!th) { renderMap(); return; }
+  if (!th) { renderLernen(); return; }
+  if (th.art === 'ma') { progress.fach = 'ma'; try { saveProgress(); } catch (e) {} maLektion(th.bereich, th.thema); return; }
   if (th.art === 'vt') { renderVokabeltraining(); return; }
   gtLektion(th.id);
 }
@@ -5726,8 +5758,20 @@ function renderPruefmodus() {
         ${PM_DAUERN.map(d => `<button class='secondary-btn' data-d='${d}' ${(+p.tage||10) === d ? "data-an='1'" : ''}>${d} Tage</button>`).join('')}
       </div>
       <div style='font-weight:600; margin-top:6px;'>Themen <span class='map-sub' style='font-weight:400;'>(zwei bis drei)</span></div>
-      <div class='pm-wahl pm-wahl-spalte' id='pmThemen'>
-        ${PM_THEMEN.map(th => `<button class='secondary-btn' data-t='${th.id}' ${gewaehlt.indexOf(th.id) >= 0 ? "data-an='1'" : ''}>${th.label}</button>`).join('')}
+      <div id='pmThemen'>
+        ${(() => {
+          const alle = pmAlleThemen();
+          const gruppen = [];
+          alle.forEach(th => { if (gruppen.indexOf(th.gruppe) < 0) gruppen.push(th.gruppe); });
+          return gruppen.map(g => {
+            const drin = alle.filter(th => th.gruppe === g);
+            const offen = drin.some(th => gewaehlt.indexOf(th.id) >= 0) || g === 'Englisch';
+            return `<details class='pm-gruppe' ${offen ? 'open' : ''}><summary>${g}</summary>
+              <div class='pm-wahl pm-wahl-spalte'>
+                ${drin.map(th => `<button class='secondary-btn' data-t='${th.id}' ${gewaehlt.indexOf(th.id) >= 0 ? "data-an='1'" : ''}>${th.label}</button>`).join('')}
+              </div></details>`;
+          }).join('');
+        })()}
       </div>
       <label style='font-weight:600; margin-top:6px;'>Probendatum <span class='map-sub' style='font-weight:400;'>(optional, nur fuer die Anzeige)</span><br>
         <input type='date' id='pmDatum' value='${p.datum || ''}' style='margin-top:6px; padding:8px; font-size:1rem;'></label>
@@ -6290,8 +6334,8 @@ function maGrPlan(runde) {
   if (stufe >= 3) arten.push('ordnen', 'weiter', 'um');
   return { stufe: stufe, arten: arten, bereiche: bereiche };
 }
-function maGrAufgabe(runde) {
-  const plan = maGrPlan(runde);
+function maGrAufgabe(runde, planVorgabe) {
+  const plan = planVorgabe || maGrPlan(runde);
   const art = maWahl(plan.arten);
   if (art === 'bezug') return maAufgabeBezug(plan.bereiche);
   if (art === 'vergleich') return maAufgabeVergleich(plan.stufe, plan.bereiche);
@@ -6623,11 +6667,14 @@ function maSaPlan(runde) {
    dieselbe Struktur mit anderer Kulisse und wird allein geloest. Geht
    Aufgabe 2 daneben, klappt die Fuehrung wieder auf - kein Vorfuehren des
    Scheiterns, sondern zurueck in die Hilfe. */
-function maSaLektion() {
+function maSaLektion(themaId) {
   pauseBuilder();
+  const saThema = maThema('sachaufgaben', themaId);
+  const rundenKey = maRundenKey('sachaufgaben', themaId);
   session = { special:'mathe', history:[], current:null, errorFree:true };
-  const runde = (progress.maRunden && progress.maRunden.sachaufgaben) || 0;
+  const runde = (progress.maRunden && progress.maRunden[rundenKey]) || 0;
   const plan = maSaPlan(runde);
+  if (saThema && saThema.arten) plan.arten = saThema.arten.slice();
   const ende = Date.now() + MA_DAUER_SEC * 1000;
   let gesamt = 0, treffer = 0;
   const proTyp = {}, fehler = [];
@@ -6645,7 +6692,7 @@ function maSaLektion() {
   function beenden() {
     if (maTimerId) { clearInterval(maTimerId); maTimerId = null; }
     session = null;
-    maBilanz('sachaufgaben', runde, gesamt, treffer, proTyp, fehler);
+    maBilanz('sachaufgaben', runde, gesamt, treffer, proTyp, fehler, themaId);
   }
 
   let letzteKulisse = null;
@@ -6734,7 +6781,7 @@ function maSaLektion() {
     }
     app.innerHTML = kopf() + `
         <div class='card vt-karte'>
-          <div class='q-topic'>Sachaufgaben · Stufe ${plan.stufe}</div>
+          <div class='q-topic'>${saThema ? saThema.name : 'Sachaufgaben'} · Stufe ${plan.stufe}</div>
           <div class='sa-marke ${istErste ? 'zusammen' : 'allein'}'>${istErste ? 'Aufgabe 1 – wir machen sie zusammen' : 'Aufgabe 2 – jetzt du allein'}</div>
           ${marke}
           ${block}
@@ -6841,6 +6888,119 @@ function maSaHilfe(offen) {
     '<tr><td>5.</td><td>Antwortsatz schreiben</td></tr></table>' +
     '<div class="ma-leiter-hinweis">Signalwörter: abgeholt, verkauft &rarr; minus · pro Stück, pro Tag &rarr; mal · gerecht verteilt &rarr; geteilt · insgesamt &rarr; plus</div></details>';
 }
+/* =========================================================================
+   v91: Themen einzeln waehlbar.
+
+   Joules Vorgabe vom 26.10.2026: 'Die Lektionen sollen unabhaengig
+   voneinander erreichbar sein, nicht wie bei Englisch starr nach Units.
+   Wir sind z. B. derzeit beim Bereich grosse Zahlen.'
+
+   Berechtigt, und bei Mathe auch unproblematisch: der Wortschatz baut
+   aufeinander auf (deshalb die Inselkette), Rechenthemen nicht. Wer gerade
+   grosse Zahlen schreibt, soll grosse Zahlen ueben koennen, ohne vorher
+   Zahlenreihen abzuarbeiten.
+
+   Jedes Thema hat seinen EIGENEN Stufenzaehler. Wer bei den grossen Zahlen
+   auf Stufe 3 ist, faengt beim Runden trotzdem bei Stufe 1 an - sonst waere
+   der freie Zugang gleich wieder eine Falle.
+   ========================================================================= */
+const MA_THEMEN = {
+  groessen: [
+    { id:'geld',    name:'Geld',            buch:'S. 81', bereiche:['geld'] },
+    { id:'laenge',  name:'Länge',           buch:'S. 83', bereiche:['laenge'] },
+    { id:'masse',   name:'Masse (Gewicht)', buch:'S. 87', bereiche:['masse'] },
+    { id:'volumen', name:'Volumen',         buch:'S. 89', bereiche:['volumen'] },
+    { id:'zeit',    name:'Zeit',            buch:'S. 91', bereiche:['zeit'] }
+  ],
+  zahlen: [
+    { id:'grosse',   name:'Große Zahlen und Stellenwert', buch:'S. 35', arten:['stellenwert','zerlegen','zahlwort'] },
+    { id:'ordnen',   name:'Ordnen und vergleichen',       buch:'S. 31', arten:['vergleich','nachbarn','ordnen'] },
+    { id:'runden',   name:'Runden',                       buch:'S. 39', arten:['runden'] },
+    { id:'reihen',   name:'Zahlenreihen',                 buch:'S. 31', arten:['folge'] }
+  ],
+  rechnen: [
+    { id:'kopf',     name:'Kopfrechnen',                   buch:'S. 53', arten:['kopf'] },
+    { id:'begriffe', name:'Fachbegriffe',                  buch:'S. 53', arten:['begriff'] },
+    { id:'vorrang',  name:'Klammern und Punkt vor Strich', buch:'S. 57', arten:['vorrang'] },
+    { id:'pruefen',  name:'Überschlag und Umkehraufgaben', buch:'S. 70', arten:['ueberschlag','umkehr'] },
+    { id:'gesetze',  name:'Rechengesetze',                 buch:'S. 57', arten:['gesetz'] }
+  ],
+  ganze: [
+    { id:'vergleichen', name:'Minuszahlen vergleichen', buch:'S. 133', arten:['vergleich','ordnen'] },
+    { id:'gerade',      name:'Auf der Zahlengeraden',   buch:'S. 137', arten:['gerade'] },
+    { id:'temperatur',  name:'Temperaturen',            buch:'S. 133', arten:['thermometer','unterschied'] }
+  ],
+  flaechen: [
+    { id:'berechnen',  name:'Flächeninhalt berechnen', buch:'S. 157', arten:['flaeche','fehlend'] },
+    { id:'umfang',     name:'Umfang',                  buch:'S. 111', arten:['umfang'] },
+    { id:'einheiten',  name:'Flächeneinheiten',        buch:'S. 154', arten:['einheiten'] }
+  ],
+  geometrie: [
+    { id:'begriffe',    name:'Linien und Lagebeziehungen', buch:'S. 103', arten:['begriff'] },
+    { id:'winkel',      name:'Winkel',                     buch:'S. 117', arten:['winkelart','winkelmass'] },
+    { id:'koordinaten', name:'Koordinatensystem',          buch:'S. 115', arten:['koordinaten'] },
+    { id:'umfang',      name:'Umfänge messen',             buch:'S. 111', arten:['umfang'] }
+  ],
+  gleichungen: [
+    { id:'einsetzen', name:'Einsetzen und prüfen', buch:'S. 173', arten:['einsetzen','begriff'] },
+    { id:'loesen',    name:'Gleichungen lösen',    buch:'S. 178', arten:['loesen'] },
+    { id:'formeln',   name:'Formeln anwenden',     buch:'S. 173', arten:['formel'] }
+  ],
+  daten: [
+    { id:'strichliste', name:'Strichliste und Häufigkeit', buch:'S. 13', arten:['strichliste','begriff'] },
+    { id:'diagramm',    name:'Diagramme lesen',            buch:'S. 13', arten:['diagramm'] }
+  ],
+  sachaufgaben: [
+    { id:'runden',      name:'Umfang mal Runden',  arten:['runden'] },
+    { id:'prostueck',   name:'Anzahl mal Preis',   arten:['prostueck'] },
+    { id:'rest',        name:'Rest berechnen',     arten:['rest'] },
+    { id:'aufteilen',   name:'Gerecht aufteilen',  arten:['aufteilen'] },
+    { id:'flaeche',     name:'Fläche mal Menge',   arten:['flaeche'] },
+    { id:'mehrschritt', name:'Zwei Schritte',      arten:['mehrschritt'] }
+  ]
+};
+function maThema(bereichId, themaId) {
+  return (MA_THEMEN[bereichId] || []).filter(x => x.id === themaId)[0] || null;
+}
+/* Eigener Rundenzaehler je Thema - 'alles gemischt' behaelt den alten
+   Schluessel, damit bisheriger Fortschritt nicht verlorengeht. */
+function maRundenKey(bereichId, themaId) { return themaId ? bereichId + ':' + themaId : bereichId; }
+
+/* Die Themenliste einer Werkbank. Zwischenschritt zwischen Werkstatt und
+   Lektion - 'Alles gemischt' steht oben, weil es der normale Weg bleibt. */
+function renderMaThemen(bereichId) {
+  pauseBuilder();
+  const bereich = MA_BEREICHE.filter(b => b.id === bereichId)[0];
+  const trainer = MA_TRAINER[bereichId];
+  const themen = MA_THEMEN[bereichId] || [];
+  function stufeVon(key) {
+    const r = (progress.maRunden && progress.maRunden[key]) || 0;
+    return trainer.plan(r).stufe;
+  }
+  app.innerHTML = `
+    ${renderNav('learn')}
+    ${renderTopbar()}
+    ${fachLeiste()}
+    <h2 style='margin:4px 0 2px;'>${bereich ? bereich.titel : trainer.titel}</h2>
+    <p class='map-sub' style='margin:0 0 12px;'>Such dir aus, was gerade dran ist. Jedes Thema hat seine eigene Stufe.</p>
+    <div class='thema-liste'>
+      <button class='thema-karte gemischt' data-thema=''>
+        <div class='th-titel'>Alles gemischt</div>
+        <div class='th-text'>Alle Aufgabenarten durcheinander – wie in der Probe</div>
+        <div class='th-stufe'>Stufe ${stufeVon(bereichId)}</div>
+      </button>
+      ${themen.map(th => `<button class='thema-karte' data-thema='${th.id}'>
+        <div class='th-titel'>${th.name}</div>
+        <div class='th-text'>${th.buch ? 'Buch ' + th.buch : ''}</div>
+        <div class='th-stufe'>Stufe ${stufeVon(maRundenKey(bereichId, th.id))}</div>
+      </button>`).join('')}
+    </div>
+    <button class='secondary-btn' id='maZurueck' style='margin-top:14px;'>&larr; Zurück zur Werkstatt</button>
+  `;
+  app.querySelectorAll('[data-thema]').forEach(b => b.onclick = () => maLektion(bereichId, b.dataset.thema || null));
+  document.getElementById('maZurueck').onclick = renderWerkstatt;
+  attachNav();
+}
 /* ---------- Registry: jede Werkbank liefert Plan, Aufgaben und Hilfe ----
    Damit laeuft EINE Lektionsmechanik fuer alle Kapitel. Eine zweite
    Lektionslogik pro Kapitel waere die sichere Quelle fuer Fehler, die nur
@@ -6859,17 +7019,32 @@ const MA_TRAINER = {
 const MA_ID_PRAEFIX = { sachaufgaben:'ma_sa_', zahlen:'ma_za_', rechnen:'ma_re_', ganze:'ma_gz_', flaechen:'ma_fl_', geometrie:'ma_geo_', gleichungen:'ma_gl_', daten:'ma_da_' };
 const MA_ERWARTET = { sachaufgaben:6, zahlen:8, rechnen:8, ganze:5, flaechen:4, geometrie:5, gleichungen:4, daten:5 };
 
-function maLektion(bereichId) {
+function maLektion(bereichId, themaId) {
   if (!MA_TRAINER[bereichId]) { renderWerkstatt(); return; }
-  if (MA_TRAINER[bereichId].eigen) { MA_TRAINER[bereichId].eigen(); return; }
-  maLektionLauf(bereichId);
+  if (MA_TRAINER[bereichId].eigen) { MA_TRAINER[bereichId].eigen(themaId); return; }
+  maLektionLauf(bereichId, themaId);
 }
-function maLektionLauf(bereichId) {
+/* Ein gewaehltes Thema ueberschreibt nur die Aufgabenauswahl des Plans -
+   die Stufenlogik bleibt dieselbe, zaehlt aber auf einem eigenen Schluessel. */
+function maPlanFuer(bereichId, themaId, runde) {
+  const plan = MA_TRAINER[bereichId].plan(runde);
+  const th = maThema(bereichId, themaId);
+  if (!th) return plan;
+  const neu = { stufe: plan.stufe, arten: th.arten ? th.arten.slice() : plan.arten, bereiche: th.bereiche ? th.bereiche.slice() : plan.bereiche };
+  /* Sicherung: eine Aufgabenart, die es auf dieser Stufe noch gar nicht gibt,
+     waere sonst nicht erzeugbar. Themenwahl hebt die Stufensperre also auf -
+     wer Runden ueben will, bekommt Runden. */
+  if (!neu.arten || !neu.arten.length) neu.arten = plan.arten;
+  return neu;
+}
+function maLektionLauf(bereichId, themaId) {
   const trainer = MA_TRAINER[bereichId];
+  const thema = maThema(bereichId, themaId);
+  const rundenKey = maRundenKey(bereichId, themaId);
   pauseBuilder();
   session = { special: 'mathe', history: [], current: null, errorFree: true };
-  const runde = (progress.maRunden && progress.maRunden[bereichId]) || 0;
-  const plan = trainer.plan(runde);
+  const runde = (progress.maRunden && progress.maRunden[rundenKey]) || 0;
+  const plan = maPlanFuer(bereichId, themaId, runde);
   const ende = Date.now() + MA_DAUER_SEC * 1000;
   let gesamt = 0, treffer = 0;
   const proTyp = {};
@@ -6887,11 +7062,11 @@ function maLektionLauf(bereichId) {
   function beenden() {
     if (maTimerId) { clearInterval(maTimerId); maTimerId = null; }
     session = null;
-    maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler);
+    maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler, themaId);
   }
 
   function naechste() {
-    aufgabe = trainer.aufgabe(runde);
+    aufgabe = trainer.aufgabe(runde, plan);
     eingabe = ''; schonFalsch = false; ordnenIdx = 0;
     zeichne();
   }
@@ -6941,7 +7116,7 @@ function maLektionLauf(bereichId) {
           <button class='secondary-btn vt-stop' id='maStop'>Schluss</button>
         </div>
         <div class='card vt-karte'>
-          <div class='q-topic'>${trainer.titel} · Stufe ${plan.stufe}</div>
+          <div class='q-topic'>${thema ? thema.name : trainer.titel} · Stufe ${plan.stufe}</div>
           <div class='vt-anweisung'>${aufgabe.anweisung}</div>
           <div class='ma-zeile'>${aufgabe.zeile}</div>
           ${eingabeBlock}
@@ -7033,16 +7208,18 @@ const MA_TYP_NAME = {
   vergleich: 'Vergleichen', ordnen: 'Ordnen', zeitspanne: 'Zeitspannen', einheit: 'Fehlende Einheit',
   weiter: 'Mehr und weniger als', bruch: 'Bruchteile' };
 
-function maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler) {
+function maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler, themaId) {
   const trainer = MA_TRAINER[bereichId];
+  const thema = maThema(bereichId, themaId);
+  const rundenKey = maRundenKey(bereichId, themaId);
   const quote = gesamt ? Math.round(treffer / gesamt * 100) : 0;
   progress.maRunden = progress.maRunden || {};
   /* Wie im Grammatik-Trainer seit v85: aufgestiegen wird nach Leistung,
      nicht nach Anzahl der Durchlaeufe. Abgestiegen wird nie. */
   const aufgestiegen = gesamt >= 5 && quote >= 65;
-  if (aufgestiegen) progress.maRunden[bereichId] = (progress.maRunden[bereichId] || 0) + 1;
-  const neueRunde = progress.maRunden[bereichId] || 0;
-  const naechsterPlan = trainer.plan(neueRunde);
+  if (aufgestiegen) progress.maRunden[rundenKey] = (progress.maRunden[rundenKey] || 0) + 1;
+  const neueRunde = progress.maRunden[rundenKey] || 0;
+  const naechsterPlan = maPlanFuer(bereichId, themaId, neueRunde);
   let lohn = null;
   if (gesamt >= 8) { try { lohn = maBelohnung(bereichId); } catch (e) {} }
   try {
@@ -7061,7 +7238,7 @@ function maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler) {
     ${renderMissionHeader()}
     <div class='session-shell'>
       <div class='card vt-bilanz-karte'>
-        <h2 style='margin:0 0 2px;'>Fünf Minuten ${trainer.titel}</h2>
+        <h2 style='margin:0 0 2px;'>Fünf Minuten ${thema ? thema.name : trainer.titel}</h2>
         <div class='vt-quote'>${quote}%</div>
         <div class='map-sub' style='margin:0 0 12px;'>${treffer} von ${gesamt} Aufgaben auf Anhieb richtig</div>
         <p class='vt-spruch'>${spruch}</p>
@@ -7070,11 +7247,11 @@ function maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler) {
         ${fehler.length ? `<div class='vt-block-titel'>Nochmal anschauen</div><div class='gt-fehlerliste'>${fehler.slice(0,8).map(f => `<div class='gt-fehler'><span class='gt-fehler-satz'>${f.satz}</span><span class='vt-zusatz'>${f.erklaerung}</span></div>`).join('')}</div>` : ''}
         <div class='map-sub' style='margin-top:12px;font-size:.85rem;'>Nächster Durchlauf: Stufe ${naechsterPlan.stufe} von 3${naechsterPlan.bereiche ? ', dabei ' + naechsterPlan.bereiche.map(b => MA_GROESSEN[b].titel).join(', ') : ''}${gesamt >= 5 && !aufgestiegen ? ' – wir bleiben auf dieser Stufe, bis sie sicher sitzt.' : ''}</div>
         <button class='primary-btn' id='maNochmal' style='margin-top:14px;'>Nochmal 5 Minuten</button>
-        <button class='secondary-btn' id='maZurWerkstatt' style='margin-top:8px;'>Zurück zur Werkstatt</button>
+        <button class='secondary-btn' id='maZurWerkstatt' style='margin-top:8px;'>Anderes Thema</button>
       </div>
     </div>`;
-  document.getElementById('maNochmal').onclick = () => maLektionLauf(bereichId);
-  document.getElementById('maZurWerkstatt').onclick = renderWerkstatt;
+  document.getElementById('maNochmal').onclick = () => maLektion(bereichId, themaId);
+  document.getElementById('maZurWerkstatt').onclick = () => renderMaThemen(bereichId);
 }
 /* =========================================================================
    v89: die restlichen sieben Kapitel aus 'Lernstufen Mathematik 5'.
@@ -7287,8 +7464,8 @@ function maZaPlan(runde) {
   if (stufe >= 3) arten.push('ordnen', 'runden');
   return { stufe: stufe, arten: arten };
 }
-function maZaAufgabe(runde) {
-  const p = maZaPlan(runde);
+function maZaAufgabe(runde, planVorgabe) {
+  const p = planVorgabe || maZaPlan(runde);
   const a = maWahl(p.arten);
   if (a === 'stellenwert') return zaStellenwert(p.stufe);
   if (a === 'zerlegen') return zaZerlegen(p.stufe);
@@ -7401,8 +7578,8 @@ function maRePlan(runde) {
   if (stufe >= 3) arten.push('gesetz','vorrang','kopf');
   return { stufe:stufe, arten:arten };
 }
-function maReAufgabe(runde) {
-  const p = maRePlan(runde); const a = maWahl(p.arten);
+function maReAufgabe(runde, planVorgabe) {
+  const p = planVorgabe || maRePlan(runde); const a = maWahl(p.arten);
   if (a === 'begriff') return reBegriff();
   if (a === 'vorrang') return reVorrang(p.stufe);
   if (a === 'ueberschlag') return reUeberschlag(p.stufe);
@@ -7489,8 +7666,8 @@ function maGzPlan(runde) {
   if (stufe >= 3) arten.push('ordnen');
   return { stufe:stufe, arten:arten };
 }
-function maGzAufgabe(runde) {
-  const p = maGzPlan(runde); const a = maWahl(p.arten);
+function maGzAufgabe(runde, planVorgabe) {
+  const p = planVorgabe || maGzPlan(runde); const a = maWahl(p.arten);
   if (a === 'vergleich') return gzVergleich(p.stufe);
   if (a === 'thermometer') return gzThermometer(p.stufe);
   if (a === 'unterschied') return gzUnterschied(p.stufe);
@@ -7563,8 +7740,8 @@ function maFlPlan(runde) {
   if (stufe >= 3) arten.push('fehlend','einheiten');
   return { stufe:stufe, arten:arten };
 }
-function maFlAufgabe(runde) {
-  const p = maFlPlan(runde); const a = maWahl(p.arten);
+function maFlAufgabe(runde, planVorgabe) {
+  const p = planVorgabe || maFlPlan(runde); const a = maWahl(p.arten);
   if (a === 'umfang') return flUmfang(p.stufe);
   if (a === 'einheiten') return flEinheiten(p.stufe);
   if (a === 'fehlend') return flFehlend(p.stufe);
@@ -7650,8 +7827,8 @@ function maGlPlan(runde) {
   if (stufe >= 3) arten.push('loesen','formel');
   return { stufe:stufe, arten:arten };
 }
-function maGlAufgabe(runde) {
-  const p = maGlPlan(runde); const a = maWahl(p.arten);
+function maGlAufgabe(runde, planVorgabe) {
+  const p = planVorgabe || maGlPlan(runde); const a = maWahl(p.arten);
   if (a === 'begriff') return glBegriff();
   if (a === 'loesen') return glLoesen(p.stufe);
   if (a === 'formel') return glFormel(p.stufe);
@@ -7743,8 +7920,8 @@ function maDaPlan(runde) {
   if (stufe >= 2) arten.push('diagramm');
   return { stufe:stufe, arten:arten };
 }
-function maDaAufgabe(runde) {
-  const p = maDaPlan(runde); const a = maWahl(p.arten);
+function maDaAufgabe(runde, planVorgabe) {
+  const p = planVorgabe || maDaPlan(runde); const a = maWahl(p.arten);
   if (a === 'strichliste') return daStrichliste(p.stufe);
   if (a === 'begriff') return daBegriff();
   return daDiagramm(p.stufe);
@@ -7872,8 +8049,8 @@ function maGeoPlan(runde) {
   if (stufe >= 3) arten.push('koordinaten','winkelmass');
   return { stufe:stufe, arten:arten };
 }
-function maGeoAufgabe(runde) {
-  const p = maGeoPlan(runde); const a = maWahl(p.arten);
+function maGeoAufgabe(runde, planVorgabe) {
+  const p = planVorgabe || maGeoPlan(runde); const a = maWahl(p.arten);
   if (a === 'winkelart') return geoWinkelart(p.stufe);
   if (a === 'winkelmass') return geoWinkelSchaetzen(p.stufe);
   if (a === 'koordinaten') return geoKoordinaten(p.stufe);
@@ -7944,7 +8121,7 @@ function renderWerkstatt() {
     <p class='map-sub' style='margin:0 0 12px;'>Edelsteine, Bauzeit und Spielzeit sind dieselben wie bei Englisch - egal, wo du sie holst.</p>
     <div class='werkbank-raster'>${karten}</div>
   `;
-  app.querySelectorAll('[data-ma]').forEach(b => b.onclick = () => maLektion(b.dataset.ma));
+  app.querySelectorAll('[data-ma]').forEach(b => b.onclick = () => renderMaThemen(b.dataset.ma));
   attachNav();
 }
 
@@ -19205,7 +19382,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v90';
+const APP_VERSION = 'v91';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
