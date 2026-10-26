@@ -6366,8 +6366,8 @@ const SA_STRUKTUREN = [
       { ort:'Der Garten', tun:'rennen', stoer: SA_STOER.baeume },
       { ort:'Das Schwimmbecken', tun:'schwimmen', stoer: SA_STOER.wasser }
     ],
-    bau: function(stufe) {
-      const k = maWahl(this.kulissen);
+    bau: function(stufe, vermeide) {
+      const k = saWaehleKulisse(this.kulissen, vermeide);
       const l = (stufe<=1 ? 20+maRnd(4)*5 : 25+maRnd(8)*5);
       const b = (stufe<=1 ? 10+maRnd(3)*5 : 10+maRnd(6)*5);
       const runden = 2 + maRnd(stufe<=1 ? 2 : 4);
@@ -6375,7 +6375,7 @@ const SA_STRUKTUREN = [
       const umfang = 2*l + 2*b;
       const antwort = umfang * runden;
       return {
-        struktur:'runden',
+        struktur:'runden', kulisse:k,
         text: [
           { s: k.ort + ' ist ' + l + ' m lang.', w:true },
           { s: 'Es ist ' + b + ' m breit.', w:true },
@@ -6404,14 +6404,14 @@ const SA_STRUKTUREN = [
       { ding:'Brötchen', stueck:'Brötchen', wo:'beim Bäcker', stoer: SA_STOER.alter },
       { ding:'Eintrittskarten', stueck:'Karte', wo:'im Schwimmbad', stoer: SA_STOER.beckenlaenge }
     ],
-    bau: function(stufe) {
-      const k = maWahl(this.kulissen);
+    bau: function(stufe, vermeide) {
+      const k = saWaehleKulisse(this.kulissen, vermeide);
       const anzahl = 3 + maRnd(stufe<=1 ? 7 : 20);
       const preis = (stufe<=1 ? maWahl([50,60,70,80,90]) : maWahl([120,150,180,220,250,320]));
       const st = k.stoer();
       const antwort = anzahl * preis;
       return {
-        struktur:'prostueck',
+        struktur:'prostueck', kulisse:k,
         text: [
           { s: 'Lena kauft ' + anzahl + ' ' + k.ding + ' ' + k.wo + '.', w:true },
           { s: (k.stueck==='Karte' ? 'Eine Karte kostet ' : 'Ein ' + k.stueck + ' kostet ') + preis + ' ct.', w:true },
@@ -6439,14 +6439,14 @@ const SA_STRUKTUREN = [
       { ding:'Stühle', ort:'in der Aula', weg:'weggeräumt' },
       { ding:'Flaschen', ort:'im Getränkemarkt', weg:'verkauft' }
     ],
-    bau: function(stufe) {
-      const k = maWahl(this.kulissen);
+    bau: function(stufe, vermeide) {
+      const k = saWaehleKulisse(this.kulissen, vermeide);
       const vorrat = (stufe<=1 ? 60+maRnd(80) : 200+maRnd(600));
       const weg = 10 + maRnd(Math.floor(vorrat*0.6));
       const st = SA_STOER.firmen();
       const antwort = vorrat - weg;
       return {
-        struktur:'rest',
+        struktur:'rest', kulisse:k,
         text: [
           { s: 'Es sind ' + vorrat + ' ' + k.ding + ' ' + k.ort + '.', w:true },
           { s: 'Davon werden ' + weg + ' ' + k.weg + '.', w:true },
@@ -6474,14 +6474,14 @@ const SA_STRUKTUREN = [
       { ding:'Sticker', wer:'Freunde', stoer: SA_STOER.album },
       { ding:'Luftballons', wer:'Tische', stoer: SA_STOER.feier }
     ],
-    bau: function(stufe) {
-      const k = maWahl(this.kulissen);
+    bau: function(stufe, vermeide) {
+      const k = saWaehleKulisse(this.kulissen, vermeide);
       const teiler = 3 + maRnd(stufe<=1 ? 6 : 10);
       const proStueck = 3 + maRnd(stufe<=1 ? 10 : 30);
       const gesamt = teiler * proStueck;
       const st = k.stoer();
       return {
-        struktur:'aufteilen',
+        struktur:'aufteilen', kulisse:k,
         text: [
           { s: 'Es gibt ' + gesamt + ' ' + k.ding + '.', w:true },
           { s: 'Sie werden gerecht auf ' + teiler + ' ' + k.wer + ' verteilt.', w:true },
@@ -6508,14 +6508,14 @@ const SA_STRUKTUREN = [
       { raum:'Die Terrasse', belag:'Platten', pro:'Platten pro m²' },
       { raum:'Der Flur', belag:'Fliesen', pro:'Fliesen pro m²' }
     ],
-    bau: function(stufe) {
-      const k = maWahl(this.kulissen);
+    bau: function(stufe, vermeide) {
+      const k = saWaehleKulisse(this.kulissen, vermeide);
       const l = 3 + maRnd(stufe<=1 ? 5 : 9), b = 2 + maRnd(stufe<=1 ? 4 : 7);
       const pro = maWahl([4, 9, 16, 25]);
       const st = SA_STOER.handwerker();
       const flaeche = l*b;
       return {
-        struktur:'flaeche',
+        struktur:'flaeche', kulisse:k,
         text: [
           { s: k.raum + ' ist ' + l + ' m lang und ' + b + ' m breit.', w:true },
           { s: 'Auf einen Quadratmeter passen ' + pro + ' ' + k.belag + '.', w:true },
@@ -6542,8 +6542,8 @@ const SA_STRUKTUREN = [
       { ding:'Trikots', firma:'Der Sportverein', ort:'im Schrank' },
       { ding:'Brote', firma:'Die Bäckerei', ort:'im Regal' }
     ],
-    bau: function(stufe) {
-      const k = maWahl(this.kulissen);
+    bau: function(stufe, vermeide) {
+      const k = saWaehleKulisse(this.kulissen, vermeide);
       const start = 80 + maRnd(200);
       const weg = 10 + maRnd(60);
       const proTag = 10 + maRnd(40);
@@ -6551,7 +6551,7 @@ const SA_STRUKTUREN = [
       const st = SA_STOER.geschaefte();
       const antwort = start - weg + proTag*tage;
       return {
-        struktur:'mehrschritt',
+        struktur:'mehrschritt', kulisse:k,
         text: [
           { s: 'Es sind ' + start + ' ' + k.ding + ' ' + k.ort + '.', w:true },
           { s: 'Davon werden ' + weg + ' abgeholt.', w:true },
@@ -6573,6 +6573,15 @@ const SA_STRUKTUREN = [
   }
 ];
 function saStruktur(id) { return SA_STRUKTUREN.filter(s => s.id === id)[0]; }
+/* v90b: Die zweite Aufgabe des Blocks soll strukturgleich sein, aber nicht
+   derselbe Text. Beim Live-Test kam zweimal hintereinander dieselbe Kulisse
+   (Bonbons, Kinder) samt derselben Stoerangabe - das ist dann keine
+   Uebertragung mehr, sondern Abschreiben. Die Kulisse der ersten Aufgabe
+   wird deshalb fuer die zweite ausgeschlossen. */
+function saWaehleKulisse(kulissen, vermeide) {
+  const frei = kulissen.filter(k => k !== vermeide);
+  return maWahl(frei.length ? frei : kulissen);
+}
 /* Die Ablenker werden aus denselben Zahlen gebaut wie die richtige Antwort.
    Bei ungluecklichen Zufallswerten faellt einer davon mit ihr zusammen (z. B.
    wenn der Rest genauso gross ist wie das Abgeholte) - dann gaebe es zwei
@@ -6627,14 +6636,17 @@ function maSaLektion() {
     maBilanz('sachaufgaben', runde, gesamt, treffer, proTyp, fehler);
   }
 
+  let letzteKulisse = null;
   function naechsterFall() {
     if (blockTeil === 0) {
       blockStruktur = maWahl(plan.arten);
       gefuehrt = true;
+      letzteKulisse = null;
     } else {
       gefuehrt = false;
     }
-    fall = saStruktur(blockStruktur).bau(plan.stufe);
+    fall = saStruktur(blockStruktur).bau(plan.stufe, letzteKulisse);
+    letzteKulisse = fall.kulisse || null;
     schritt = gefuehrt ? 0 : 3;
     ersterVersuchOk = true; markiert = []; eingabe = '';
     zeichne();
