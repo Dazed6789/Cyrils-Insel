@@ -5732,7 +5732,7 @@ function pmBanner() {
   const name = th ? th.kurz : 'Grammatik';
   const zusatz = tag.doppelt ? ' Heute zweimal - einmal jetzt, einmal spaeter.'
     : tag.locker ? ' Letzter Tag: einmal locker bestaetigen, nichts mehr aufreissen.'
-    : tag.einfuehrung ? ' Spickzettel bleibt offen.' : '';
+    : tag.einfuehrung ? ' Die Merkhilfe bleibt offen.' : '';
   return `<div class='pm-banner'>
     <div class='pm-kopf'>Probenvorbereitung &middot; Tag ${p.nr} von ${p.tage}${probeText}</div>
     <div class='pm-text'>Heute zuerst: <strong>${name}</strong>, 5 Minuten.${zusatz}</div>
