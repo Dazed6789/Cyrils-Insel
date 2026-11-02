@@ -6751,6 +6751,226 @@ const SA_STRUKTUREN = [
       };
     }
   }
+,
+  /* ======================================================================
+     v93: sechs neue Strukturen aus Joules Aufgabensammlung (02.11.2026).
+     Die Vorlagen stammen aus einem Uebungsheft fuer Klasse 4; die
+     Rechenwege sind aber dieselben, die Lernstufen 5 verlangt - nur die
+     Zahlenraeume sind hochgezogen. Bewusst NICHT uebernommen: die
+     Aufgabentexte selbst (Verlagsinhalt) und alles, was auf Bilder
+     angewiesen ist (Waage, Streichholz- und Edelsteinraetsel).
+     ====================================================================== */
+  {
+    id: 'summediff',
+    name: 'Summe und Unterschied',
+    kulissen: [
+      { a:'das Fahrrad', b:'der Helm', stoer: SA_STOER.hausnummer },
+      { a:'der Schrank', b:'der Sessel', stoer: SA_STOER.handwerker },
+      { a:'das Handy', b:'die Hülle', stoer: SA_STOER.busfahrt },
+      { a:'der Drucker', b:'das Papier', stoer: SA_STOER.regale }
+    ],
+    bau: function(stufe, vermeide) {
+      const k = saWaehleKulisse(this.kulissen, vermeide);
+      const klein = 10 + maRnd(stufe<=1 ? 40 : 200);
+      const unterschied = 2 * (10 + maRnd(stufe<=1 ? 40 : 150));
+      const summe = klein + klein + unterschied;
+      const st = saStoer(k.stoer, [klein, unterschied, summe, klein+unterschied]);
+      const Gross = s => s.charAt(0).toUpperCase() + s.slice(1);
+      return {
+        struktur:'summediff', kulisse:k,
+        text: [
+          { s: Gross(k.a) + ' und ' + k.b + ' kosten zusammen ' + summe + ' €.', w:true },
+          { s: st.satz, w:false },
+          { s: Gross(k.a) + ' ist um ' + unterschied + ' € teurer als ' + k.b + '.', w:true }
+        ],
+        frage: 'Wie viel kostet ' + k.b + '?',
+        gesucht: 'der Preis des günstigeren Teils',
+        gesuchtOpt: ['der Preis beider zusammen', 'der Preisunterschied', 'der Preis des teureren Teils'],
+        rechnung: '(' + summe + ' \u2212 ' + unterschied + ') : 2',
+        rechnungOpt: [ summe + ' : 2', '(' + summe + ' + ' + unterschied + ') : 2', summe + ' \u2212 ' + unterschied ],
+        antwort: klein, einheit:'€',
+        satz: Gross(k.b) + ' kostet ' + klein + ' €.',
+        satzOpt: [ Gross(k.b) + ' kostet ' + (klein+unterschied) + ' €.', Gross(k.a) + ' kostet ' + klein + ' €.', 'Zusammen kosten sie ' + klein + ' €.' ],
+        tipp: 'Zieh den Unterschied ab, dann sind beide gleich teuer: ' + summe + ' \u2212 ' + unterschied + ' = ' + (summe-unterschied) + '. Davon die Hälfte.',
+        stoer: 'Die Zahl ' + st.zahl + ' wird nicht gebraucht.'
+      };
+    }
+  },
+  {
+    id: 'vielfaches',
+    name: 'So-und-so-mal so viel',
+    kulissen: [
+      { gross:'Regal', klein:'Stuhl', mehrz:'Regale', mehrzK:'Stühle', wer:'Frau Forster' },
+      { gross:'Tisch', klein:'Hocker', mehrz:'Tische', mehrzK:'Hocker', wer:'Herr Gärtner' },
+      { gross:'Schrank', klein:'Kiste', mehrz:'Schränke', mehrzK:'Kisten', wer:'die Schule' },
+      { gross:'Monitor', klein:'Tastatur', mehrz:'Monitore', mehrzK:'Tastaturen', wer:'das Büro' }
+    ],
+    bau: function(stufe, vermeide) {
+      const k = saWaehleKulisse(this.kulissen, vermeide);
+      const faktor = 2 + maRnd(stufe<=1 ? 2 : 3);
+      const anzG = 2 + maRnd(2), anzK = 2 + maRnd(3);
+      const preisK = 10 + maRnd(stufe<=1 ? 30 : 90);
+      const teile = anzG * faktor + anzK;
+      const gesamt = teile * preisK;
+      const st = saStoer(SA_STOER.handwerker, [faktor, anzG, anzK, preisK, gesamt, teile]);
+      return {
+        struktur:'vielfaches', kulisse:k,
+        text: [
+          { s: k.wer.charAt(0).toUpperCase()+k.wer.slice(1) + ' kauft ' + anzG + ' gleiche ' + k.mehrz + ' und ' + anzK + ' gleiche ' + k.mehrzK + '.', w:true },
+          { s: 'Ein ' + k.gross + ' ist ' + (faktor === 2 ? 'doppelt' : faktor + '-mal') + ' so teuer wie ein ' + k.klein + '.', w:true },
+          { s: st.satz, w:false },
+          { s: 'Zusammen kostet alles ' + gesamt + ' €.', w:true }
+        ],
+        frage: 'Wie viel kostet ein ' + k.klein + '?',
+        gesucht: 'der Preis eines ' + k.klein + 's',
+        gesuchtOpt: ['der Preis eines ' + k.gross + 's', 'der Gesamtpreis', 'die Anzahl der Möbel'],
+        rechnung: gesamt + ' : ' + teile,
+        rechnungOpt: [ gesamt + ' : ' + (anzG + anzK), gesamt + ' : ' + faktor, gesamt + ' \u2212 ' + teile ],
+        antwort: preisK, einheit:'€',
+        satz: 'Ein ' + k.klein + ' kostet ' + preisK + ' €.',
+        satzOpt: [ 'Ein ' + k.klein + ' kostet ' + (preisK*faktor) + ' €.', 'Ein ' + k.gross + ' kostet ' + preisK + ' €.', 'Zusammen kosten sie ' + preisK + ' €.' ],
+        tipp: 'Jeder ' + k.gross + ' zählt wie ' + faktor + ' ' + k.mehrzK + '. Also ' + anzG + ' · ' + faktor + ' + ' + anzK + ' = ' + teile + ' gleiche Teile.',
+        stoer: 'Die Zahl ' + st.zahl + ' wird nicht gebraucht.'
+      };
+    }
+  },
+  {
+    id: 'fahrten',
+    name: 'Wie oft fahren? (mit Rest)',
+    kulissen: [
+      { ware:'Äpfel', fahrzeug:'Anhänger', wer:'Der Landwirt', einheit:'t' },
+      { ware:'Sand', fahrzeug:'Kipper', wer:'Die Baufirma', einheit:'t' },
+      { ware:'Kisten', fahrzeug:'Lieferwagen', wer:'Der Händler', einheit:'Kisten' },
+      { ware:'Stühle', fahrzeug:'Transporter', wer:'Die Schule', einheit:'Stühle' }
+    ],
+    bau: function(stufe, vermeide) {
+      const k = saWaehleKulisse(this.kulissen, vermeide);
+      const proFahrt = 3 + maRnd(stufe<=1 ? 5 : 20);
+      const fahrten = 3 + maRnd(stufe<=1 ? 4 : 9);
+      const rest = 1 + maRnd(proFahrt - 1);
+      const gesamt = proFahrt * (fahrten - 1) + rest;
+      const st = saStoer(SA_STOER.busfahrt, [proFahrt, fahrten, gesamt, rest]);
+      const er = k.wer.indexOf('Die') === 0 ? 'sie' : 'er';
+      return {
+        struktur:'fahrten', kulisse:k,
+        text: [
+          /* v93-Korrektur: bei Kisten und Stuehlen sind Einheit und Ware
+             dasselbe Wort - sonst stand da '149 Stuehle Stuehle'. */
+          { s: k.wer + ' muss ' + gesamt + ' ' + (k.einheit === k.ware ? k.ware : k.einheit + ' ' + k.ware) + ' wegbringen.', w:true },
+          { s: 'Der ' + k.fahrzeug + ' fasst höchstens ' + proFahrt + ' ' + k.einheit + '.', w:true },
+          { s: st.satz, w:false }
+        ],
+        frage: 'Wie oft muss ' + er + ' mindestens fahren?',
+        gesucht: 'die Anzahl der Fahrten',
+        gesuchtOpt: ['die Menge pro Fahrt', 'die Menge insgesamt', 'der Rest der letzten Fahrt'],
+        rechnung: gesamt + ' : ' + proFahrt + ', dann aufrunden',
+        rechnungOpt: [ gesamt + ' : ' + proFahrt + ', dann abrunden', gesamt + ' \u00b7 ' + proFahrt, proFahrt + ' : ' + gesamt ],
+        antwort: fahrten, einheit:'Fahrten',
+        satz: 'Er muss ' + fahrten + '-mal fahren.',
+        satzOpt: [ 'Er muss ' + (fahrten-1) + '-mal fahren.', 'Er bringt ' + fahrten + ' ' + k.einheit + ' weg.', 'Es bleiben ' + fahrten + ' ' + k.einheit + ' übrig.' ],
+        tipp: gesamt + ' : ' + proFahrt + ' = ' + (fahrten-1) + ' Rest ' + rest + '. Der Rest braucht eine eigene Fahrt, also ' + fahrten + '.',
+        stoer: 'Die Zahl ' + st.zahl + ' wird nicht gebraucht.'
+      };
+    }
+  },
+  {
+    id: 'rueckgeld',
+    name: 'Wie viel kommt zurück?',
+    kulissen: [
+      { gruppeA:'Schüler', eA:'Schüler', gruppeB:'Lehrer', eB:'Lehrer', was:'die Fahrt', wer:'Ein Lehrer' },
+      { gruppeA:'Kinder', eA:'Kind', gruppeB:'Erwachsene', eB:'Erwachsenen', was:'der Eintritt', wer:'Der Vater' },
+      { gruppeA:'Jugendliche', eA:'Jugendlichen', gruppeB:'Erwachsene', eB:'Erwachsenen', was:'die Karte', wer:'Die Mutter' }
+    ],
+    bau: function(stufe, vermeide) {
+      const k = saWaehleKulisse(this.kulissen, vermeide);
+      const nA = 8 + maRnd(stufe<=1 ? 12 : 40), nB = 2 + maRnd(4);
+      const pA = maWahl([120, 130, 150, 180, 200]), pB = maWahl([240, 250, 300, 350, 400]);
+      const kosten = nA*pA + nB*pB;
+      const schein = Math.ceil((kosten + 1) / 5000) * 5000;
+      const st = saStoer(SA_STOER.busfahrt, [nA, nB, pA, pB, kosten, schein-kosten]);
+      return {
+        struktur:'rueckgeld', kulisse:k,
+        text: [
+          { s: nA + ' ' + k.gruppeA + ' und ' + nB + ' ' + k.gruppeB + ' machen einen Ausflug.', w:true },
+          { s: 'Für jeden ' + k.eA + ' kostet ' + k.was + ' ' + pA + ' ct, für jeden ' + k.eB + ' ' + pB + ' ct.', w:true },
+          { s: st.satz, w:false },
+          { s: k.wer + ' bezahlt alles mit ' + (schein/100) + ' €.', w:true }
+        ],
+        frage: 'Wie viel Geld kommt zurück? (in ct)',
+        gesucht: 'das Rückgeld',
+        gesuchtOpt: ['der Gesamtpreis', 'der Preis pro Person', 'die Anzahl der Personen'],
+        rechnung: schein + ' \u2212 (' + nA + ' \u00b7 ' + pA + ' + ' + nB + ' \u00b7 ' + pB + ')',
+        rechnungOpt: [ nA + ' \u00b7 ' + pA + ' + ' + nB + ' \u00b7 ' + pB, schein + ' \u2212 ' + nA + ' \u00b7 ' + pA, '(' + nA + ' + ' + nB + ') \u00b7 ' + pA ],
+        antwort: schein - kosten, einheit:'ct',
+        satz: 'Es kommen ' + (schein-kosten) + ' ct zurück.',
+        satzOpt: [ 'Es kommen ' + kosten + ' ct zurück.', 'Bezahlt werden ' + (schein-kosten) + ' ct.', 'Jeder zahlt ' + (schein-kosten) + ' ct.' ],
+        tipp: 'Erst alles zusammenrechnen: ' + kosten + ' ct. Dann vom Schein abziehen.',
+        stoer: 'Die Zahl ' + st.zahl + ' wird nicht gebraucht.'
+      };
+    }
+  },
+  {
+    id: 'tempo',
+    name: 'Meter pro Minute',
+    kulissen: [
+      { a:'Markus', art:'radelt' }, { a:'Eva', art:'radelt' }, { a:'Marie', art:'radelt' }, { a:'Jonas', art:'läuft' }
+    ],
+    bau: function(stufe, vermeide) {
+      const k = saWaehleKulisse(this.kulissen, vermeide);
+      const proMin = maWahl([200, 250, 300, 350, 400]);
+      const minuten = 4 + maRnd(stufe<=1 ? 8 : 20);
+      const st = saStoer(SA_STOER.wetter, [proMin, minuten, proMin*minuten]);
+      return {
+        struktur:'tempo', kulisse:k,
+        text: [
+          { s: k.a + ' ' + k.art + ' ' + proMin + ' Meter pro Minute.', w:true },
+          { s: st.satz, w:false },
+          { s: k.a + ' ist ' + minuten + ' Minuten unterwegs.', w:true }
+        ],
+        frage: 'Wie viele Meter legt ' + k.a + ' zurück?',
+        gesucht: 'die Strecke in Metern',
+        gesuchtOpt: ['die Zeit in Minuten', 'das Tempo pro Minute', 'die Strecke in Kilometern'],
+        rechnung: proMin + ' \u00b7 ' + minuten,
+        rechnungOpt: [ proMin + ' + ' + minuten, proMin + ' : ' + minuten, minuten + ' : ' + proMin ],
+        antwort: proMin * minuten, einheit:'m',
+        satz: k.a + ' legt ' + (proMin*minuten) + ' m zurück.',
+        satzOpt: [ k.a + ' legt ' + proMin + ' m zurück.', k.a + ' braucht ' + (proMin*minuten) + ' Minuten.', k.a + ' legt ' + (proMin*minuten) + ' km zurück.' ],
+        tipp: 'Pro Minute ' + proMin + ' m, und das ' + minuten + '-mal.',
+        stoer: 'Die Zahl ' + st.zahl + ' wird nicht gebraucht.'
+      };
+    }
+  },
+  {
+    id: 'zahlenraetsel',
+    name: 'Ich denke mir eine Zahl',
+    kulissen: [ { wer:'Lisa' }, { wer:'Jonas' }, { wer:'Mia' }, { wer:'Ben' } ],
+    bau: function(stufe, vermeide) {
+      const k = saWaehleKulisse(this.kulissen, vermeide);
+      const x = 3 + maRnd(stufe<=1 ? 15 : 60);
+      const mal = 2 + maRnd(stufe<=1 ? 4 : 8);
+      const plus = 5 + maRnd(stufe<=1 ? 25 : 90);
+      const erg = x * mal + plus;
+      return {
+        struktur:'zahlenraetsel', kulisse:k,
+        text: [
+          { s: k.wer + ' sagt: \u201eIch denke mir eine Zahl.\u201c', w:false },
+          { s: '\u201eIch multipliziere sie mit ' + mal + '.\u201c', w:true },
+          { s: '\u201eDann addiere ich ' + plus + '.\u201c', w:true },
+          { s: '\u201eIch erhalte ' + erg + '.\u201c', w:true }
+        ],
+        frage: 'Wie heißt ' + k.wer + 's Zahl?',
+        gesucht: 'die gedachte Zahl',
+        gesuchtOpt: ['das Ergebnis', 'die Zahl zum Malnehmen', 'die Zahl zum Addieren'],
+        rechnung: '(' + erg + ' \u2212 ' + plus + ') : ' + mal,
+        rechnungOpt: [ erg + ' : ' + mal + ' \u2212 ' + plus, '(' + erg + ' + ' + plus + ') : ' + mal, erg + ' \u2212 ' + plus + ' \u00b7 ' + mal ],
+        antwort: x, einheit:'',
+        satz: 'Die Zahl heißt ' + x + '.',
+        satzOpt: [ 'Die Zahl heißt ' + (erg - plus) + '.', 'Die Zahl heißt ' + erg + '.', 'Die Zahl heißt ' + mal + '.' ],
+        tipp: 'Rückwärts rechnen (Umkehraufgabe): zuerst ' + plus + ' abziehen, dann durch ' + mal + ' teilen.',
+        stoer: 'Der erste Satz nennt keine Zahl, die man braucht.'
+      };
+    }
+  }
 ];
 function saStruktur(id) { return SA_STRUKTUREN.filter(s => s.id === id)[0]; }
 /* v90b: Die zweite Aufgabe des Blocks soll strukturgleich sein, aber nicht
@@ -6793,9 +7013,9 @@ function saOptionen(richtig, alternativen) {
 }
 function maSaPlan(runde) {
   const stufe = Math.min(3, Math.max(1, Math.floor(runde/2)+1));
-  const offen = ['runden','prostueck','rest','aufteilen'];
-  if (stufe >= 2) offen.push('flaeche');
-  if (stufe >= 3) offen.push('mehrschritt');
+  const offen = ['runden','prostueck','rest','aufteilen','tempo'];
+  if (stufe >= 2) offen.push('flaeche','rueckgeld','zahlenraetsel');
+  if (stufe >= 3) offen.push('mehrschritt','summediff','vielfaches','fahrten');
   return { stufe: stufe, arten: offen };
 }
 /* ---------- Die Lektion: Zweierbloecke ----------
@@ -7088,12 +7308,18 @@ const MA_THEMEN = {
     { id:'diagramm',    name:'Diagramme lesen',            buch:'S. 13', arten:['diagramm'] }
   ],
   sachaufgaben: [
-    { id:'runden',      name:'Umfang mal Runden',  arten:['runden'] },
-    { id:'prostueck',   name:'Anzahl mal Preis',   arten:['prostueck'] },
-    { id:'rest',        name:'Rest berechnen',     arten:['rest'] },
-    { id:'aufteilen',   name:'Gerecht aufteilen',  arten:['aufteilen'] },
-    { id:'flaeche',     name:'Fläche mal Menge',   arten:['flaeche'] },
-    { id:'mehrschritt', name:'Zwei Schritte',      arten:['mehrschritt'] }
+    { id:'runden',       name:'Umfang mal Runden',     arten:['runden'] },
+    { id:'prostueck',    name:'Anzahl mal Preis',      arten:['prostueck'] },
+    { id:'rest',         name:'Rest berechnen',        arten:['rest'] },
+    { id:'aufteilen',    name:'Gerecht aufteilen',     arten:['aufteilen'] },
+    { id:'tempo',        name:'Meter pro Minute',      arten:['tempo'] },
+    { id:'flaeche',      name:'Fläche mal Menge',      arten:['flaeche'] },
+    { id:'rueckgeld',    name:'Wie viel kommt zurück?',arten:['rueckgeld'] },
+    { id:'zahlenraetsel',name:'Ich denke mir eine Zahl',arten:['zahlenraetsel'] },
+    { id:'mehrschritt',  name:'Zwei Schritte',         arten:['mehrschritt'] },
+    { id:'summediff',    name:'Summe und Unterschied', arten:['summediff'] },
+    { id:'vielfaches',   name:'So-und-so-mal so viel', arten:['vielfaches'] },
+    { id:'fahrten',      name:'Wie oft fahren? (mit Rest)', arten:['fahrten'] }
   ]
 };
 function maThema(bereichId, themaId) {
@@ -7341,6 +7567,8 @@ const MA_TYP_NAME = {
  winkelart:'Winkelarten', winkelmass:'Winkel schätzen', koordinaten:'Koordinaten', einsetzen:'Einsetzen', loesen:'Gleichung lösen',
  formel:'Formel anwenden', strichliste:'Strichliste', diagramm:'Diagramm lesen',
  runden:'Umfang mal Runden', prostueck:'Anzahl mal Preis', rest:'Rest berechnen', aufteilen:'Gerecht aufteilen',
+ tempo:'Meter pro Minute', rueckgeld:'Rückgeld', zahlenraetsel:'Zahlenrätsel', summediff:'Summe und Unterschied',
+ vielfaches:'So-und-so-mal so viel', fahrten:'Fahrten mit Rest',
  flaeche:'Fläche mal Menge', mehrschritt:'Zwei Schritte',
  um: 'Umrechnen', gemischt: 'Gemischte Schreibweise', bezug: 'Welche Einheit passt?',
   vergleich: 'Vergleichen', ordnen: 'Ordnen', zeitspanne: 'Zeitspannen', einheit: 'Fehlende Einheit',
@@ -19673,7 +19901,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v92';
+const APP_VERSION = 'v93';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
