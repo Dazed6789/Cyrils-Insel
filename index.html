@@ -5760,7 +5760,8 @@ const PM_THEMEN_EN = [
   { id: 'pronomen', label: 'Pronomen', kurz: 'Pronomen', art: 'gt', gruppe: 'Englisch' },
   { id: 'tobe', label: 'to be (am/is/are)', kurz: 'to be', art: 'gt', gruppe: 'Englisch' },
   { id: 'beides', label: 'Pronomen + to be gemischt', kurz: 'Beides gemischt', art: 'gt', gruppe: 'Englisch' },
-  { id: 'vokabeln', label: 'Vokabeln (Unit wählbar)', kurz: 'Vokabeln', art: 'vt', gruppe: 'Englisch' }
+  { id: 'vokabeln', label: 'Vokabeln (Unit wählbar)', kurz: 'Vokabeln', art: 'vt', gruppe: 'Englisch' },
+  { id: 'phonics', label: 'Laute und Buchstaben', kurz: 'Laute', art: 'ph', gruppe: 'Englisch' }
 ];
 /* v91 (Joules Auftrag 26.10.2026): der Probenvorbereitungs-Modus gilt jetzt
    auch fuer Mathe. Die Liste wird aus den Werkbaenken und ihren Themen
@@ -5903,6 +5904,7 @@ function pmBlockStarten(themaId) {
   progress.pmBlock = { fach: fach, thema: themaId, t: Date.now() };
   try { saveProgress(); } catch (e) {}
   if (th.art === 'ma') { progress.fach = 'ma'; maLektion(th.bereich, th.thema); return; }
+  if (th.art === 'ph') { phonLektion(); return; }
   if (th.art === 'vt') { renderVokabeltraining(); return; }
   gtLektion(th.id);
 }
@@ -8875,6 +8877,7 @@ function diagName(bereichId, id) {
 }
 /* Welches Probenthema deckt eine wackelige Fertigkeit ab? */
 function diagThemaFuer(e) {
+  if (e.bereich === 'phonics') return 'phonics';
   if (e.fach === 'en') return 'vokabeln';
   const themen = MA_THEMEN[e.bereich] || [];
   const kurz = e.id.replace(/^ma_(za|re|gz|fl|geo|gl|da|sa)_/, '').replace(/^ma_/, '');
@@ -20518,7 +20521,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v96';
+const APP_VERSION = 'v96b';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
