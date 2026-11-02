@@ -258,6 +258,12 @@ button{font-family:var(--font-main); letter-spacing:var(--letter-spacing-base); 
 .diag-balken span{display:block;height:100%;background:#E07A5F;}
 .diag-quote{font-weight:700;min-width:3.2em;text-align:right;}
 .diag-n{color:#9A9A9A;font-size:.8rem;min-width:2.4em;text-align:right;}
+.diag-trend{font-size:.76rem;font-weight:700;min-width:6.4em;text-align:right;white-space:nowrap;}
+.diag-trend.hoch{color:#2F7A4A;}
+.diag-trend.runter{color:#B4452F;}
+.diag-trend.gleich{color:#8A8A8A;}
+.diag-trend.keine{color:#B5B5B5;font-weight:400;}
+.diag-hinweis{margin-bottom:10px;padding:8px 11px;border-radius:9px;background:#FFF8E6;font-size:.84rem;line-height:1.35;}
 .kal-kopf{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
 .kal-wochentage{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:.74rem;color:#8A8A8A;text-align:center;margin-bottom:3px;}
 .kal-gitter{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
@@ -2289,6 +2295,7 @@ function reviewResult(id, ok){
      gelernte Woerter sporadisch wieder abgefragt werden (Joules Anforderung
      24.08.2026) - siehe isDue(). */
   const day = 86400000;
+  if (firstTry) skillEreignis(id, ok);   /* v97: nur der erste Versuch, wie ueberall sonst gezaehlt */
   if(ok){
     s.correct++;
     /* v22 (Abschnitt 29.5): Intervall auf MAX_REVIEW_INTERVAL_DAYS gedeckelt.
@@ -6132,12 +6139,40 @@ const MA_BEZUG = [
    Fertigkeiten ist bei Mathe das richtige Mass; eine konkrete Aufgabe
    wiederzusehen waere sinnlos. Dieselbe Intervall-Leiter wie beim
    Wortschatz, damit sich beide Faecher gleich anfuehlen. ---------- */
+/* =========================================================================
+   v97 (Joules Nachfrage 02.11.2026): "Ist die Einschaetzung der Schwaechen
+   fuer einen Tag oder welchen Zeitraum?"
+
+   Ehrliche Antwort war: fuer gar keinen. vocab_state und math_state fuehren
+   nur Gesamtzaehler seit Beginn. Eine Fertigkeit, die vor drei Wochen
+   schlecht lief und seither sitzt, stand deshalb weiter auf der Liste -
+   und eine, die gerade kippt, ging im Gesamtschnitt unter. Fuer eine
+   Entscheidung, was als Naechstes zu ueben ist, ist das die falsche Zahl.
+
+   Dafuer braucht es Einzelereignisse mit Zeitstempel. Die gab es nicht, also
+   werden sie ab jetzt mitgeschrieben: ein Eintrag je Versuch, knapp
+   gehalten (Zeit, Id, richtig). Gedeckelt auf 4000 Eintraege - das sind bei
+   seinem Tempo mehrere Monate.
+
+   WICHTIG und ehrlich: dieses Protokoll beginnt heute. Der Verlauf fuellt
+   sich erst. Solange zu wenig im Fenster liegt, zeigt die Liste weiterhin
+   den Gesamtwert und sagt das auch dazu.
+   ========================================================================= */
+const SKILL_LOG_MAX = 4000;
+function skillEreignis(id, ok) {
+  try {
+    progress.skill_log = progress.skill_log || [];
+    progress.skill_log.push({ t: Date.now(), id: id, ok: ok ? 1 : 0 });
+    while (progress.skill_log.length > SKILL_LOG_MAX) progress.skill_log.shift();
+  } catch (e) {}
+}
 function maState(id) {
   progress.math_state = progress.math_state || {};
   if (!progress.math_state[id]) progress.math_state[id] = { correct: 0, error: 0, interval: 0, ease: 2.0, next_review: 0 };
   return progress.math_state[id];
 }
 function maReview(id, ok) {
+  skillEreignis(id, ok);
   const s = maState(id);
   const tag = 86400000;
   if (ok) {
@@ -8807,7 +8842,28 @@ function metaPauseHtml() {
 
    Keine neue Erhebung: alles steht schon in math_state und vocab_state.
    ========================================================================= */
-function diagEintraege() {
+/* Trefferquote einer Fertigkeit im Zeitfenster, plus Trend innerhalb des
+   Fensters (erste Haelfte gegen zweite Haelfte). Liefert null zurueck, wenn
+   zu wenig Daten da sind - dann faellt die Liste auf den Gesamtwert
+   zurueck und sagt das dazu. */
+function skillFenster(id, tage) {
+  const ab = Date.now() - tage * 86400000;
+  const ev = (progress.skill_log || []).filter(e => e.id === id && e.t >= ab);
+  if (!ev.length) return null;
+  const quote = ev.filter(e => e.ok).length / ev.length;
+  let trend = null;
+  if (ev.length >= 6) {
+    const mitte = Math.floor(ev.length / 2);
+    const frueh = ev.slice(0, mitte), spaet = ev.slice(mitte);
+    const qf = frueh.filter(e => e.ok).length / frueh.length;
+    const qs = spaet.filter(e => e.ok).length / spaet.length;
+    trend = { frueh: qf, spaet: qs, delta: qs - qf };
+  }
+  return { n: ev.length, quote: quote, trend: trend, letzte: ev[ev.length-1].t };
+}
+let diagFenster = 14;
+function diagEintraege(tage) {
+  tage = tage || diagFenster;
   const liste = [];
   const jetzt = Date.now();
   /* --- Mathe: Fertigkeiten je Werkbank --- */
@@ -8816,15 +8872,15 @@ function diagEintraege() {
     ids.forEach(id => {
       const s = (progress.math_state || {})[id];
       if (!s) return;
-      const n = (s.correct || 0) + (s.error || 0);
+      const f = skillFenster(id, tage);
+      const nGes = (s.correct || 0) + (s.error || 0);
+      const n = f ? f.n : nGes;
       if (n < 3) return;
-      const quote = s.correct / n;
-      if (quote >= 0.8 && s.correct >= 3) return;   /* sitzt */
-      liste.push({
-        fach: 'ma', bereich: bereichId, id: id, n: n, quote: quote,
-        tageHer: s.next_review ? Math.round((jetzt - (s.next_review - (s.interval || 1) * 86400000)) / 86400000) : null,
-        name: diagName(bereichId, id)
-      });
+      const quote = f ? f.quote : (s.correct / nGes);
+      if (quote >= 0.8) return;   /* sitzt */
+      liste.push({ fach:'ma', bereich:bereichId, id:id, n:n, quote:quote,
+        imFenster: !!f, trend: f ? f.trend : null, letzte: f ? f.letzte : null,
+        name: diagName(bereichId, id) });
     });
   });
   /* --- Englisch: Laut-Buchstaben-Muster --- */
@@ -8832,11 +8888,14 @@ function diagEintraege() {
     PHON_MUSTER.forEach(mu => {
       const s = (progress.math_state || {})['ph_' + mu.id];
       if (!s) return;
-      const n = (s.correct || 0) + (s.error || 0);
+      const f = skillFenster('ph_' + mu.id, tage);
+      const nGes = (s.correct || 0) + (s.error || 0);
+      const n = f ? f.n : nGes;
       if (n < 3) return;
-      const quote = s.correct / n;
+      const quote = f ? f.quote : (s.correct / nGes);
       if (quote >= 0.8) return;
       liste.push({ fach:'en', bereich:'phonics', id:'ph_' + mu.id, n:n, quote:quote,
+        imFenster: !!f, trend: f ? f.trend : null, letzte: f ? f.letzte : null,
         name: 'Schriftmuster ' + mu.schrift + ' (' + mu.wie + ')' });
     });
   } catch (e) {}
@@ -8844,12 +8903,15 @@ function diagEintraege() {
   try {
     (reviewPool() || []).forEach(wid => {
       const s = vState(wid);
-      const n = (s.correct || 0) + (s.error || 0);
+      const f = skillFenster(wid, tage);
+      const nGes = (s.correct || 0) + (s.error || 0);
+      const n = f ? f.n : nGes;
       if (n < 3) return;
-      const quote = s.correct / n;
+      const quote = f ? f.quote : (s.correct / nGes);
       if (quote >= 0.8) return;
       const v = VOCAB.filter(x => x.id === wid)[0];
-      liste.push({ fach: 'en', bereich: 'vokabeln', id: wid, n: n, quote: quote,
+      liste.push({ fach:'en', bereich:'vokabeln', id:wid, n:n, quote:quote,
+        imFenster: !!f, trend: f ? f.trend : null, letzte: f ? f.letzte : null,
         name: v ? (v.en + ' – ' + v.de) : wid });
     });
   } catch (e) {}
@@ -8887,9 +8949,19 @@ function diagThemaFuer(e) {
   }
   return 'ma:' + e.bereich;
 }
-function renderDiagnose() {
+function diagTrendHtml(e) {
+  if (!e.imFenster) return `<span class='diag-trend keine' title='Noch keine Einzeldaten im Zeitfenster'>Gesamt</span>`;
+  if (!e.trend) return `<span class='diag-trend keine' title='Zu wenige Versuche im Fenster für einen Trend'>–</span>`;
+  const f = Math.round(e.trend.frueh * 100), s = Math.round(e.trend.spaet * 100);
+  if (e.trend.delta >= 0.15) return `<span class='diag-trend hoch'>&#9650; ${f}&nbsp;&rarr;&nbsp;${s} %</span>`;
+  if (e.trend.delta <= -0.15) return `<span class='diag-trend runter'>&#9660; ${f}&nbsp;&rarr;&nbsp;${s} %</span>`;
+  return `<span class='diag-trend gleich'>&#9644; ${f}&nbsp;&rarr;&nbsp;${s} %</span>`;
+}
+function renderDiagnose(tage) {
   pauseBuilder();
-  const alle = diagEintraege();
+  if (tage) diagFenster = tage;
+  const alle = diagEintraege(diagFenster);
+  const imFenster = alle.filter(e => e.imFenster).length;
   const top = alle.slice(0, 12);
   const vorschlag = [];
   top.forEach(e => { const th = diagThemaFuer(e); if (vorschlag.indexOf(th) < 0 && vorschlag.length < 3) vorschlag.push(th); });
@@ -8897,7 +8969,11 @@ function renderDiagnose() {
     ${renderNav('profile')}
     ${renderTopbar()}
     <h2 style='margin:4px 0 2px;'>Was wackelt gerade</h2>
-    <p class='map-sub' style='margin:0 0 10px;'>Nur für dich. Gezählt werden Fertigkeiten mit mindestens drei Versuchen und einer Trefferquote unter 80 %. Was sicher sitzt, taucht hier nicht auf.</p>
+    <p class='map-sub' style='margin:0 0 8px;'>Nur für dich. Gezählt werden Fertigkeiten mit mindestens drei Versuchen und einer Trefferquote unter 80 %. Der Trend vergleicht die erste mit der zweiten Hälfte des Zeitraums.</p>
+    <div class='pm-wahl' id='diagFensterWahl' style='margin-bottom:10px;'>
+      ${[7,14,30].map(d => `<button class='secondary-btn' data-tage='${d}' ${diagFenster === d ? "data-an='1'" : ''}>${d} Tage</button>`).join('')}
+    </div>
+    ${imFenster < alle.length ? `<div class='diag-hinweis'>Für ${alle.length - imFenster} Einträge liegen im Zeitraum noch keine Einzeldaten vor – dort steht der Gesamtwert seit Beginn. Das Verlaufsprotokoll läuft erst seit dem Update; es füllt sich mit jeder Lektion.</div>` : ''}
     ${top.length ? `<div class='diag-liste'>${top.map(e => `
       <div class='diag-zeile'>
         <span class='diag-fach ${e.fach}'>${e.fach === 'ma' ? 'Mathe' : 'Englisch'}</span>
@@ -8905,6 +8981,7 @@ function renderDiagnose() {
         <span class='diag-balken'><span style='width:${Math.round(e.quote*100)}%'></span></span>
         <span class='diag-quote'>${Math.round(e.quote*100)} %</span>
         <span class='diag-n'>${e.n}×</span>
+        ${diagTrendHtml(e)}
       </div>`).join('')}</div>` :
       `<div class='card'>Noch nichts Auffälliges. Entweder sitzt alles, oder es sind noch zu wenige Versuche dabei – ab drei Versuchen je Fertigkeit wird gezählt.</div>`}
     ${vorschlag.length ? `<div class='card' style='align-items:stretch; margin-top:14px;'>
@@ -8924,6 +9001,7 @@ function renderDiagnose() {
     try { saveProgress(); } catch (e) {}
     renderPruefmodus(fach);
   };
+  app.querySelectorAll('#diagFensterWahl button').forEach(b => b.onclick = () => renderDiagnose(+b.dataset.tage));
   document.getElementById('diagZurueck').onclick = renderProfile;
   nachDemZeichnen(false);
 }
@@ -20521,7 +20599,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v96b';
+const APP_VERSION = 'v97';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
