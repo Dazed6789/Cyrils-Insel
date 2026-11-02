@@ -8721,7 +8721,12 @@ function metaBilanzText(daten) {
   const q = a => a.length ? Math.round(a.filter(d => d.ok).length / a.length * 100) : null;
   const qs = q(sicher), qu = q(unsicher);
   if (qs !== null && qu !== null) {
-    if (qs >= qu + 20) return `Deine Einschätzung stimmt: wo du <strong>sicher</strong> warst, hattest du ${qs} % richtig, bei <strong>unsicher</strong> ${qu} %. Du merkst selbst, was sitzt.`;
+    /* v95-Korrektur noch am selben Tag: bei 25 % gegen 0 % stand hier
+       'Deine Einschätzung stimmt' - formal richtig, als Rueckmeldung
+       falsch. Wer fast alles falsch hat, soll nicht fuers Einschaetzen
+       gelobt werden. Erst ab einer brauchbaren Quote. */
+    if (qs >= qu + 20 && qs >= 50) return `Deine Einschätzung stimmt: wo du <strong>sicher</strong> warst, hattest du ${qs} % richtig, bei <strong>unsicher</strong> ${qu} %. Du merkst selbst, was sitzt.`;
+    if (qs >= qu + 20) return `Wo du <strong>sicher</strong> warst, lief es besser (${qs} % gegen ${qu} %). Das Thema ist noch frisch – dein Gefühl dafür stimmt aber schon.`;
     if (qu > qs) return `Interessant: bei <strong>unsicher</strong> hattest du ${qu} % richtig, bei <strong>sicher</strong> nur ${qs} %. Du kannst mehr, als du dir zutraust.`;
     return `Sicher und unsicher lagen fast gleich (${qs} % zu ${qu} %). Hör beim nächsten Mal genauer in dich hinein.`;
   }
