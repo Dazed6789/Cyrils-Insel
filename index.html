@@ -6885,9 +6885,11 @@ const SA_STRUKTUREN = [
     id: 'rueckgeld',
     name: 'Wie viel kommt zurück?',
     kulissen: [
-      { gruppeA:'Schüler', eA:'Schüler', gruppeB:'Lehrer', eB:'Lehrer', was:'die Fahrt', wer:'Ein Lehrer' },
-      { gruppeA:'Kinder', eA:'Kind', gruppeB:'Erwachsene', eB:'Erwachsenen', was:'der Eintritt', wer:'Der Vater' },
-      { gruppeA:'Jugendliche', eA:'Jugendlichen', gruppeB:'Erwachsene', eB:'Erwachsenen', was:'die Karte', wer:'Die Mutter' }
+      /* v94: der Artikel muss zum Wort passen - 'fuer jeden Kind' stand so
+         in der ersten Fassung. */
+      { gruppeA:'Schüler', aA:'jeden', eA:'Schüler', gruppeB:'Lehrer', aB:'jeden', eB:'Lehrer', was:'die Fahrt', wer:'Ein Lehrer' },
+      { gruppeA:'Kinder', aA:'jedes', eA:'Kind', gruppeB:'Erwachsene', aB:'jeden', eB:'Erwachsenen', was:'der Eintritt', wer:'Der Vater' },
+      { gruppeA:'Jugendliche', aA:'jeden', eA:'Jugendlichen', gruppeB:'Erwachsene', aB:'jeden', eB:'Erwachsenen', was:'die Karte', wer:'Die Mutter' }
     ],
     bau: function(stufe, vermeide) {
       const k = saWaehleKulisse(this.kulissen, vermeide);
@@ -6900,7 +6902,7 @@ const SA_STRUKTUREN = [
         struktur:'rueckgeld', kulisse:k,
         text: [
           { s: nA + ' ' + k.gruppeA + ' und ' + nB + ' ' + k.gruppeB + ' machen einen Ausflug.', w:true },
-          { s: 'Für jeden ' + k.eA + ' kostet ' + k.was + ' ' + pA + ' ct, für jeden ' + k.eB + ' ' + pB + ' ct.', w:true },
+          { s: 'Für ' + k.aA + ' ' + k.eA + ' kostet ' + k.was + ' ' + pA + ' ct, für ' + k.aB + ' ' + k.eB + ' ' + pB + ' ct.', w:true },
           { s: st.satz, w:false },
           { s: k.wer + ' bezahlt alles mit ' + (schein/100) + ' €.', w:true }
         ],
