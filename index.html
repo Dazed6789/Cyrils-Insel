@@ -237,6 +237,24 @@ button{font-family:var(--font-main); letter-spacing:var(--letter-spacing-base); 
 .sa-frage{font-size:1.1rem;font-weight:700;margin:6px 0 10px;}
 .sa-rechnung{font-size:1.25rem;font-weight:700;text-align:center;color:#8A6A12;margin-bottom:8px;}
 .sa-vorlesen{margin-top:10px;padding:8px 14px;font-size:.9rem;border:1px solid #D8C3A5;border-radius:9px;background:#FFF;cursor:pointer;}
+.kal-kopf{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+.kal-wochentage{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:.74rem;color:#8A8A8A;text-align:center;margin-bottom:3px;}
+.kal-gitter{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.kal-zelle{position:relative;min-height:62px;border:1px solid #E4DCCF;border-radius:8px;background:#FFF;padding:3px 3px 2px;font:inherit;color:inherit;text-align:left;cursor:pointer;overflow:hidden;}
+.kal-zelle.leer{border-color:transparent;background:transparent;cursor:default;}
+.kal-zelle.heute{border-color:#C8A063;border-width:2px;}
+.kal-zelle.aktiv{background:#FCFAF6;}
+.kal-nr{font-size:.72rem;font-weight:700;color:#9A9A9A;}
+.kal-bloecke{display:flex;flex-direction:column;gap:2px;margin-top:2px;}
+.kal-block{display:flex;align-items:center;justify-content:space-between;border-radius:3px;padding:1px 3px;color:#FFF;font-size:.62rem;font-weight:700;line-height:1.25;}
+.kb-note{background:rgba(255,255,255,.3);border-radius:2px;padding:0 2px;}
+.kal-summe{position:absolute;right:3px;bottom:2px;font-size:.6rem;color:#9A9A9A;}
+.kal-legende{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:.78rem;color:#667;}
+.kal-legende i,.kal-zeile i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px;}
+.kal-zeile{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #F0ECE4;font-size:.92rem;}
+.kz-name{flex:1;}
+.kz-zahl{color:#8A8A8A;font-size:.85rem;white-space:nowrap;}
+.kz-note{font-weight:700;min-width:1.6em;text-align:right;}
 .thema-liste{display:flex;flex-direction:column;gap:8px;}
 .thema-karte{display:block;text-align:left;background:#FFF;border:2px solid #D8C3A5;border-radius:12px;padding:11px 14px;cursor:pointer;font:inherit;color:inherit;position:relative;}
 .thema-karte.gemischt{border-color:#C8A063;background:#FFF8E6;}
@@ -251,6 +269,8 @@ button{font-family:var(--font-main); letter-spacing:var(--letter-spacing-base); 
 .da-buendel{border-bottom:2px solid #1C3D4A;padding-bottom:1px;margin-right:3px;}
 .pm-banner{background:#FFF8E6;border:2px solid #E8C96A;border-radius:14px;padding:12px 14px;margin-bottom:10px;}
 .pm-banner.pm-fertig{background:#EAF7EE;border-color:#8CC9A0;}
+.pm-banner.pm-erledigt{background:#EFF5F7;border-color:#A9C6D1;}
+.pm-banner.pm-erledigt .pm-kopf{color:#3E6B7E;}
 .pm-kopf{font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8A6A12;margin-bottom:4px;}
 .pm-banner.pm-fertig .pm-kopf{color:#2F7A4A;}
 .pm-text{font-size:.95rem;line-height:1.35;}
@@ -4760,6 +4780,7 @@ function renderGrammatiktrainer() {
 
 /* ---------- Die Lektion -------------------------------------------------- */
 function gtLektion(thema) {
+  gtStart = Date.now();
   pauseBuilder();
   session = { special: 'grammatiktrainer', history: [], current: null, errorFree: true };
   const runde = (progress.gtRunden && progress.gtRunden[thema]) || 0;
@@ -4887,13 +4908,15 @@ function gtBilanz(thema, runde, gesamt, treffer, proMuster, fehler) {
   const musterName = { A:'Pronomen zuordnen', B:'Sätze bilden', C:'Form wählen', D:'am/is/are', E:'richtig oder falsch' };
   try {
     progress.session_log = progress.session_log || [];
-    progress.session_log.push({ d:dayStamp(0), t:Date.now(), ms:GT_DAUER_SEC*1000, n:gesamt, ok:treffer,
-      err:gesamt-treffer, steps:gesamt, neu:0, isl:progress.current_island_id, art:'grammatiktrainer', done:true });
+    progress.session_log.push({ d:dayStamp(0), t:Date.now(), ms:gtDauerMs(), n:gesamt, ok:treffer,
+      err:gesamt-treffer, steps:gesamt, neu:0, isl:progress.current_island_id, art:'grammatiktrainer',
+      fach:'en', pm: pmBlockLaeuft('en') ? 1 : 0, done:true });
     while (progress.session_log.length > SESSION_LOG_MAX) progress.session_log.shift();
   } catch (e) {}
   const m = specialById('grammatiktrainer');
   let lohn = null;
   if (m && gesamt >= 8) { try { lohn = specialBelohnungGeben(m); } catch (e) {} }
+  try { pmBlockBeenden(gesamt); } catch (e) {}
   saveProgress();
   app.innerHTML = `
     ${renderMissionHeader()}
@@ -4974,6 +4997,7 @@ function renderVokabeltraining() {
 
 /* ---------- Die Lektion: fuenf Minuten ---------------------------------- */
 function vtLektion(ids) {
+  vtStart = Date.now();
   pauseBuilder();
   /* Wie der bestehende Vokabeltest ein Sitzungsobjekt setzen: reviewResult()
      erkennt daran die Sondermission und zieht bei Fehlern nichts ab. */
@@ -5192,11 +5216,13 @@ function vtBilanz(ergebnis, ids, gestellt) {
      auftaucht wie jede andere Runde auch. */
   try {
     progress.session_log = progress.session_log || [];
-    progress.session_log.push({ d: dayStamp(0), t: Date.now(), ms: VT_DAUER_SEC * 1000,
+    progress.session_log.push({ d: dayStamp(0), t: Date.now(), ms: vtDauerMs(),
       n: liste.length, ok: richtig.length, err: falsch.length, steps: gestellt, neu: 0,
-      isl: progress.current_island_id, art: 'vokabeltraining', done: true });
+      isl: progress.current_island_id, art: 'vokabeltraining',
+      fach:'en', pm: pmBlockLaeuft('en') ? 1 : 0, done: true });
     while (progress.session_log.length > SESSION_LOG_MAX) progress.session_log.shift();
     saveProgress();
+  try { pmBlockBeenden(liste.length); } catch (e) {}
   } catch (e) {}
   const m = specialById('vokabeltraining');
   let lohn = null;
@@ -5259,6 +5285,11 @@ function startSessionLog(islandId, art) {
     neu: 0,                    // neu eingefuehrte Woerter
     isl: islandId,
     art: art || 'insel',       // 'insel' oder Sondermissions-Id
+    /* v92: Fach und Probenvorbereitungs-Flag. Beides braucht der
+       Lernkalender im Elternbereich, um zu zeigen WAS geuebt wurde und
+       nicht nur DASS geuebt wurde. */
+    fach: 'en',
+    pm: pmBlockLaeuft('en') ? 1 : 0,
     done: false,
   };
   if (!progress.session_log) progress.session_log = [];
@@ -5669,18 +5700,84 @@ function pmThema(id) { const a = pmAlleThemen(); for (let i=0;i<a.length;i++) if
 /* Gibt den laufenden Modus samt Tagesnummer zurueck - oder null. Schaltet
    sich nach dem letzten Tag selbst ab und merkt sich das fuer einen
    einmaligen Hinweis auf der Karte. */
-function pmAktiv() {
-  const p = progress.pruefmodus;
-  if (!p || !p.start || !p.tage || !p.themen || !p.themen.length) return null;
-  const nr = pmTageDiff(p.start, pmHeute()) + 1;
-  if (nr < 1) return null;
+/* =========================================================================
+   v92, drei Aenderungen auf Joules Meldung vom 02.11.2026:
+
+   1. Der Modus gilt jetzt PRO FACH. Mathe und Englisch koennen gleichzeitig
+      je eine Probenphase haben - vorher ueberschrieb die zweite die erste.
+
+   2. Die Tage ruecken nur vor, wenn die Lektion auch wirklich gemacht
+      wurde. Vorher haengte der Tageszaehler am Kalender: ein Tag ohne Zeit
+      bedeutete eine uebersprungene Lektion. Das war ein Konstruktionsfehler
+      - der Plan ist eine Reihenfolge von Lektionen, kein Terminkalender.
+      Der Pausentag hat nichts zu erledigen und rueckt deshalb von selbst
+      vor, sobald ein neuer Kalendertag beginnt.
+
+   3. Grundlage fuer den Lernkalender im Elternbereich.
+   ========================================================================= */
+function pmFachVon(themen) {
+  if (!themen || !themen.length) return 'en';
+  return themen.every(id => String(id).indexOf('ma:') === 0) ? 'ma' : 'en';
+}
+/* Alt: ein einzelnes Objekt. Neu: eines je Fach. */
+function pmAlle() {
+  let p = progress.pruefmodus;
+  if (p && (p.start || p.tage)) {
+    const fach = pmFachVon(p.themen);
+    const neu = {}; neu[fach] = p;
+    progress.pruefmodus = neu;
+    try { saveProgress(); } catch (e) {}
+    return neu;
+  }
+  if (!p || typeof p !== 'object') { progress.pruefmodus = {}; p = progress.pruefmodus; }
+  return p;
+}
+function pmAktiv(fach) {
+  const f = fach || aktivesFach();
+  const alle = pmAlle();
+  const p = alle[f];
+  if (!p || !p.tage || !p.themen || !p.themen.length) return null;
+  p.erledigt = p.erledigt || [];
+  p.tagStart = p.tagStart || p.start || pmHeute();
+  /* Pausentag: es gibt nichts abzuhaken. Sobald ein neuer Kalendertag
+     begonnen hat, gilt er als vorbei. */
+  let nr = p.erledigt.length + 1;
+  if (nr <= p.tage) {
+    const tagPlan = pmPlanTag(p, nr);
+    if (tagPlan.pause && pmTageDiff(p.tagStart, pmHeute()) >= 1) {
+      p.erledigt.push(p.tagStart);
+      p.tagStart = pmHeute();
+      try { saveProgress(); } catch (e) {}
+      nr = p.erledigt.length + 1;
+    }
+  }
   if (nr > p.tage) {
-    progress.pruefmodus = null;
-    progress.pmFertig = { tage: p.tage, themen: p.themen.slice() };
+    delete alle[f];
+    progress.pmFertig = { tage: p.tage, themen: p.themen.slice(), fach: f };
     try { saveProgress(); } catch (e) {}
     return null;
   }
-  return { start: p.start, tage: p.tage, themen: p.themen.slice(), datum: p.datum || '', nr: nr };
+  return { fach: f, start: p.start, tage: p.tage, themen: p.themen.slice(), datum: p.datum || '',
+    nr: nr, heuteErledigt: p.erledigt.indexOf(pmHeute()) >= 0 };
+}
+/* Laeuft gerade ein Tagesblock aus der Probenvorbereitung? */
+function pmBlockLaeuft(fach) {
+  const b = progress.pmBlock;
+  return !!(b && b.fach === fach && Date.now() - b.t < 40 * 60 * 1000);
+}
+/* Wird am Ende jeder Lektion aufgerufen. Hakt den Tag ab - aber hoechstens
+   einmal pro Kalendertag, sonst waere der Plan an einem Nachmittag durch. */
+function pmBlockBeenden(aufgaben) {
+  const b = progress.pmBlock;
+  progress.pmBlock = null;
+  if (!b || (aufgaben || 0) < 3) { try { saveProgress(); } catch (e) {} return; }
+  const alle = pmAlle();
+  const p = alle[b.fach];
+  if (!p) { try { saveProgress(); } catch (e) {} return; }
+  p.erledigt = p.erledigt || [];
+  const heute = pmHeute();
+  if (p.erledigt.indexOf(heute) < 0) { p.erledigt.push(heute); p.tagStart = heute; }
+  try { saveProgress(); } catch (e) {}
 }
 
 /* Der Tagesplan. Bei kurzen Phasen (unter 5 Tagen) faellt der Pausentag weg,
@@ -5703,7 +5800,10 @@ function pmPlanTag(p, nr) {
 function pmBlockStarten(themaId) {
   const th = pmThema(themaId);
   if (!th) { renderLernen(); return; }
-  if (th.art === 'ma') { progress.fach = 'ma'; try { saveProgress(); } catch (e) {} maLektion(th.bereich, th.thema); return; }
+  const fach = th.art === 'ma' ? 'ma' : 'en';
+  progress.pmBlock = { fach: fach, thema: themaId, t: Date.now() };
+  try { saveProgress(); } catch (e) {}
+  if (th.art === 'ma') { progress.fach = 'ma'; maLektion(th.bereich, th.thema); return; }
   if (th.art === 'vt') { renderVokabeltraining(); return; }
   gtLektion(th.id);
 }
@@ -5722,6 +5822,10 @@ function pmBanner() {
   const p = pmAktiv();
   if (!p) return '';
   const tag = pmPlanTag(p, p.nr);
+  if (p.heuteErledigt) {
+    return `<div class='pm-banner pm-erledigt'><div class='pm-kopf'>Probenvorbereitung &middot; Tag ${p.nr - 1} von ${p.tage} geschafft</div>
+      <div class='pm-text'>Für heute ist der Block erledigt. Morgen geht es mit Tag ${p.nr} weiter.</div></div>`;
+  }
   const bis = p.datum ? pmTageDiff(pmHeute(), p.datum) : null;
   const probeText = bis === null ? '' : bis > 1 ? ` &middot; Probe in ${bis} Tagen` : bis === 1 ? ' &middot; Probe ist morgen' : bis === 0 ? ' &middot; Probe ist heute' : '';
   if (tag.pause) {
@@ -5741,17 +5845,26 @@ function pmBanner() {
 }
 
 /* Die Admin-Maske. Liegt im Profil, nicht im Lernweg - sie gehoert Joule. */
-function renderPruefmodus() {
+let pmMaskeFach = null;
+function renderPruefmodus(fachWahl) {
   pauseBuilder();
-  const p = progress.pruefmodus || {};
+  if (fachWahl) pmMaskeFach = fachWahl;
+  const fach = pmMaskeFach || aktivesFach();
+  pmMaskeFach = fach;
+  const alle = pmAlle();
+  const p = alle[fach] || {};
   const gewaehlt = (p.themen || []).slice();
-  const laufend = pmAktiv();
+  const laufend = pmAktiv(fach);
   app.innerHTML = `
     ${renderNav('profile')}
     ${renderTopbar()}
     <h2>Probenvorbereitung einstellen</h2>
-    <p class='map-sub'>Fuer dich, nicht fuer Cyril. Du waehlst Dauer und zwei bis drei Themen - die App verteilt sie dann selbst auf die Tage, drosselt in der Zeit die Neueinfuehrung von Vokabeln und legt einen Pausentag in die Mitte. Spielzeit und Belohnungen bleiben unveraendert.</p>
-    ${laufend ? `<div class='card pm-stand'><strong>Laeuft:</strong> Tag ${laufend.nr} von ${laufend.tage}, Themen: ${laufend.themen.map(id => (pmThema(id)||{kurz:id}).kurz).join(', ')}<button class='secondary-btn' id='pmAusBtn' style='margin-top:10px;'>Modus jetzt beenden</button></div>` : ''}
+    <div class='fach-leiste' style='max-width:320px;'>
+      <button class='fach-tab ${fach === 'en' ? 'an' : ''}' data-pmfach='en'>Englisch</button>
+      <button class='fach-tab ${fach === 'ma' ? 'an' : ''}' data-pmfach='ma'>Mathe</button>
+    </div>
+    <p class='map-sub'>Jedes Fach hat seine eigene Phase – beide dürfen gleichzeitig laufen. Fuer dich, nicht fuer Cyril. Du waehlst Dauer und zwei bis drei Themen - die App verteilt sie dann selbst auf die Tage, drosselt in der Zeit die Neueinfuehrung von Vokabeln und legt einen Pausentag in die Mitte. Spielzeit und Belohnungen bleiben unveraendert.</p>
+    ${laufend ? `<div class='card pm-stand'><strong>Läuft:</strong> Tag ${laufend.nr} von ${laufend.tage}${laufend.heuteErledigt ? ' – heute schon erledigt' : ''}<br>Themen: ${laufend.themen.map(id => (pmThema(id)||{kurz:id}).kurz).join(', ')}<button class='secondary-btn' id='pmAusBtn' style='margin-top:10px;'>Diese Phase beenden</button></div>` : ''}
     <div class='card' style='align-items:stretch; gap:12px; margin-top:14px;'>
       <div style='font-weight:600;'>Dauer</div>
       <div class='pm-wahl' id='pmDauer'>
@@ -5760,12 +5873,12 @@ function renderPruefmodus() {
       <div style='font-weight:600; margin-top:6px;'>Themen <span class='map-sub' style='font-weight:400;'>(zwei bis drei)</span></div>
       <div id='pmThemen'>
         ${(() => {
-          const alle = pmAlleThemen();
+          const alle = pmAlleThemen().filter(th => (th.art === 'ma' ? 'ma' : 'en') === fach);
           const gruppen = [];
           alle.forEach(th => { if (gruppen.indexOf(th.gruppe) < 0) gruppen.push(th.gruppe); });
           return gruppen.map(g => {
             const drin = alle.filter(th => th.gruppe === g);
-            const offen = drin.some(th => gewaehlt.indexOf(th.id) >= 0) || g === 'Englisch';
+            const offen = drin.some(th => gewaehlt.indexOf(th.id) >= 0) || gruppen.length === 1;
             return `<details class='pm-gruppe' ${offen ? 'open' : ''}><summary>${g}</summary>
               <div class='pm-wahl pm-wahl-spalte'>
                 ${drin.map(th => `<button class='secondary-btn' data-t='${th.id}' ${gewaehlt.indexOf(th.id) >= 0 ? "data-an='1'" : ''}>${th.label}</button>`).join('')}
@@ -5807,6 +5920,7 @@ function renderPruefmodus() {
       v.innerHTML = `<table class='pm-tabelle'>${rows}</table>`;
     }
   }
+  app.querySelectorAll('[data-pmfach]').forEach(b => b.onclick = () => renderPruefmodus(b.dataset.pmfach));
   app.querySelectorAll('#pmDauer button').forEach(b => b.onclick = () => { dauer = +b.dataset.d; malen(); });
   app.querySelectorAll('#pmThemen button').forEach(b => b.onclick = () => {
     const id = b.dataset.t, i = themen.indexOf(id);
@@ -5815,17 +5929,16 @@ function renderPruefmodus() {
   });
   document.getElementById('pmStartBtn').onclick = () => {
     if (themen.length < 2 || themen.length > 3) return;
-    progress.pruefmodus = { start: pmHeute(), tage: dauer, themen: themen.slice(), datum: (document.getElementById('pmDatum')||{}).value || '' };
+    const alle2 = pmAlle();
+    alle2[fach] = { start: pmHeute(), tagStart: pmHeute(), erledigt: [], tage: dauer,
+      themen: themen.slice(), datum: (document.getElementById('pmDatum')||{}).value || '' };
     progress.pmFertig = null;
-    /* Enthaelt die Phase nur Mathethemen, soll die App auch im Fach Mathe
-       landen - sonst sucht man das Banner auf der falschen Seite. */
-    if (themen.length && themen.every(id => id.indexOf('ma:') === 0)) progress.fach = 'ma';
-    else if (themen.every(id => id.indexOf('ma:') !== 0)) progress.fach = 'en';
+    progress.fach = fach;
     try { saveProgress(); } catch (e) {}
     renderLernen();
   };
   const aus = document.getElementById('pmAusBtn');
-  if (aus) aus.onclick = () => { progress.pruefmodus = null; progress.pmFertig = null; try { saveProgress(); } catch (e) {} renderPruefmodus(); };
+  if (aus) aus.onclick = () => { const a = pmAlle(); delete a[fach]; progress.pmFertig = null; try { saveProgress(); } catch (e) {} renderPruefmodus(fach); };
   document.getElementById('pmZurueckBtn').onclick = renderProfile;
   malen();
   attachNav();
@@ -6689,6 +6802,7 @@ function maSaPlan(runde) {
    Aufgabe 2 daneben, klappt die Fuehrung wieder auf - kein Vorfuehren des
    Scheiterns, sondern zurueck in die Hilfe. */
 function maSaLektion(themaId) {
+  maStart = Date.now();
   pauseBuilder();
   const saThema = maThema('sachaufgaben', themaId);
   const rundenKey = maRundenKey('sachaufgaben', themaId);
@@ -7059,6 +7173,7 @@ function maPlanFuer(bereichId, themaId, runde) {
   return neu;
 }
 function maLektionLauf(bereichId, themaId) {
+  maStart = Date.now();
   const trainer = MA_TRAINER[bereichId];
   const thema = maThema(bereichId, themaId);
   const rundenKey = maRundenKey(bereichId, themaId);
@@ -7243,10 +7358,12 @@ function maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler, themaId) {
   const naechsterPlan = maPlanFuer(bereichId, themaId, neueRunde);
   let lohn = null;
   if (gesamt >= 8) { try { lohn = maBelohnung(bereichId); } catch (e) {} }
+  try { pmBlockBeenden(gesamt); } catch (e) {}
   try {
     progress.session_log = progress.session_log || [];
-    progress.session_log.push({ d: dayStamp(0), t: Date.now(), ms: MA_DAUER_SEC*1000, n: gesamt, ok: treffer,
-      err: gesamt - treffer, steps: gesamt, neu: 0, isl: 'mathe', art: 'mathe_' + bereichId, done: true });
+    progress.session_log.push({ d: dayStamp(0), t: Date.now(), ms: maDauerMs(), n: gesamt, ok: treffer,
+      err: gesamt - treffer, steps: gesamt, neu: 0, isl: 'mathe', art: 'mathe_' + bereichId,
+      fach:'ma', pm: pmBlockLaeuft('ma') ? 1 : 0, thema: themaId || null, done: true });
     while (progress.session_log.length > SESSION_LOG_MAX) progress.session_log.shift();
   } catch (e) {}
   try { saveProgress(); } catch (e) {}
@@ -8088,9 +8205,149 @@ function maGeoHilfe(offen) {
     '<tr><td>P(x|y)</td><td>erst rechts, dann hoch</td></tr></table>' +
     '<div class="ma-leiter-hinweis">senkrecht \u22a5 · parallel \u2225</div></details>';
 }
+/* =========================================================================
+   v92: Lernkalender - nur im Elternbereich.
+
+   Joules Vorgabe: 'Nur als Erwachsener sollte ich sehen, wie das Kind
+   Fortschritte macht, nicht nur dass es die Arbeit erledigt.'
+
+   Deshalb bewusst NICHT im Kinderbereich: eine Monatsansicht mit Noten
+   wuerde aus dem Ueben eine Bewertung machen. Das Kind sieht weiterhin nur
+   seine eigene Bilanz nach jeder Lektion.
+   ========================================================================= */
+const KAL_ARTEN = [
+  { id:'en_normal', label:'Englisch · Insel',        farbe:'#4A90A4' },
+  { id:'en_pm',     label:'Englisch · Probe',        farbe:'#1C4F63' },
+  { id:'en_extra',  label:'Englisch · Sondermission',farbe:'#7FB3C4' },
+  { id:'ma_normal', label:'Mathe · Werkstatt',       farbe:'#C8A063' },
+  { id:'ma_pm',     label:'Mathe · Probe',           farbe:'#8A6A12' }
+];
+function kalArtVon(e) {
+  const fach = e.fach || (String(e.art || '').indexOf('mathe_') === 0 ? 'ma' : 'en');
+  if (fach === 'ma') return e.pm ? 'ma_pm' : 'ma_normal';
+  if (e.pm) return 'en_pm';
+  return (e.art && e.art !== 'insel') ? 'en_extra' : 'en_normal';
+}
+const KAL_NAMEN = { insel:'Insel-Lektion', grammatiktrainer:'Grammatik üben', vokabeltraining:'Vokabeltest üben',
+  review_run:'Auffrischung', story_tf2:'Lesemission', signs:'Schilder', ed_sort:'Endungen', vokabeltest:'Vokabeltest',
+  fotos:'Fotos', diffbank:'Unterschiede', hoertest:'Hörtest', space_invaders:'Space Invaders' };
+function kalName(e) {
+  const a = String(e.art || 'insel');
+  if (a.indexOf('mathe_') === 0) {
+    const b = MA_BEREICHE.filter(x => x.id === a.slice(6))[0];
+    const th = e.thema ? maThema(a.slice(6), e.thema) : null;
+    return (th ? th.name : (b ? b.titel : 'Mathe'));
+  }
+  return KAL_NAMEN[a] || a;
+}
+/* Erfolgsnote 1-10, 10 ist das Beste. Grundlage ist die Quote der auf
+   Anhieb richtig geloesten Aufgaben - dieselbe Zahl, die das Kind nach
+   jeder Lektion sieht. Unter fuenf Aufgaben wird nicht benotet, das waere
+   Zufall. */
+function kalNote(e) {
+  const n = e.n || 0;
+  if (n < 5) return null;
+  const quote = (e.ok || 0) / n;
+  return Math.max(1, Math.min(10, Math.round(quote * 9) + 1));
+}
+function kalMinuten(e) { return Math.max(1, Math.round((e.ms || 0) / 60000)); }
+function kalDatum(d) { const s = String(d); return { j:+s.slice(0,4), m:+s.slice(4,6), t:+s.slice(6,8) }; }
+const KAL_MONATE = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+let kalJahr = 0, kalMonat = 0;
+function renderLernkalender() {
+  pauseBuilder();
+  const heute = new Date();
+  if (!kalJahr) { kalJahr = heute.getFullYear(); kalMonat = heute.getMonth() + 1; }
+  const log = (progress.session_log || []).filter(e => e.done && (e.n || 0) > 0);
+  const proTag = {};
+  log.forEach(e => { const d = kalDatum(e.d); if (d.j !== kalJahr || d.m !== kalMonat) return;
+    proTag[d.t] = proTag[d.t] || []; proTag[d.t].push(e); });
+
+  const ersterTag = new Date(kalJahr, kalMonat - 1, 1);
+  const tageImMonat = new Date(kalJahr, kalMonat, 0).getDate();
+  let vorlauf = ersterTag.getDay() - 1; if (vorlauf < 0) vorlauf = 6;   /* Montag zuerst */
+
+  let zellen = '';
+  for (let i = 0; i < vorlauf; i++) zellen += `<div class='kal-zelle leer'></div>`;
+  for (let tag = 1; tag <= tageImMonat; tag++) {
+    const eintraege = proTag[tag] || [];
+    const istHeute = heute.getFullYear() === kalJahr && heute.getMonth() + 1 === kalMonat && heute.getDate() === tag;
+    const minuten = eintraege.reduce((s, e) => s + kalMinuten(e), 0);
+    const bloecke = eintraege.map(e => {
+      const art = KAL_ARTEN.filter(a => a.id === kalArtVon(e))[0] || KAL_ARTEN[0];
+      const note = kalNote(e);
+      return `<div class='kal-block' style='background:${art.farbe}' title='${kalName(e)}'>
+        <span class='kb-zeit'>${kalMinuten(e)}′</span>${note ? `<span class='kb-note'>${note}</span>` : ''}</div>`;
+    }).join('');
+    zellen += `<button class='kal-zelle ${istHeute ? 'heute' : ''} ${eintraege.length ? 'aktiv' : ''}' data-tag='${tag}'>
+      <span class='kal-nr'>${tag}</span>
+      <div class='kal-bloecke'>${bloecke}</div>
+      ${minuten ? `<span class='kal-summe'>${minuten} Min</span>` : ''}
+    </button>`;
+  }
+
+  /* Monatsbilanz: wie viele Tage geuebt, wie lange, wie gut. */
+  const alleEintraege = Object.keys(proTag).reduce((a, k) => a.concat(proTag[k]), []);
+  const noten = alleEintraege.map(kalNote).filter(x => x !== null);
+  const schnitt = noten.length ? (noten.reduce((a, b) => a + b, 0) / noten.length) : null;
+  const minutenGesamt = alleEintraege.reduce((s, e) => s + kalMinuten(e), 0);
+
+  app.innerHTML = `
+    ${renderNav('profile')}
+    ${renderTopbar()}
+    <h2 style='margin:4px 0 2px;'>Lernkalender</h2>
+    <p class='map-sub' style='margin:0 0 10px;'>Nur für dich – Cyril sieht diese Seite nicht. Die Zahl im Block ist die Dauer, die kleine Zahl rechts die Erfolgsnote von 1 bis 10.</p>
+    <div class='kal-kopf'>
+      <button class='secondary-btn' id='kalZurueckM'>&larr;</button>
+      <strong>${KAL_MONATE[kalMonat-1]} ${kalJahr}</strong>
+      <button class='secondary-btn' id='kalVorM'>&rarr;</button>
+    </div>
+    <div class='kal-wochentage'>${['Mo','Di','Mi','Do','Fr','Sa','So'].map(w => `<span>${w}</span>`).join('')}</div>
+    <div class='kal-gitter'>${zellen}</div>
+    <div class='kal-legende'>${KAL_ARTEN.map(a => `<span><i style='background:${a.farbe}'></i>${a.label}</span>`).join('')}</div>
+    <div class='card' style='align-items:stretch; margin-top:12px;'>
+      <div style='font-weight:600;'>Dieser Monat</div>
+      <div>An <strong>${Object.keys(proTag).length}</strong> Tagen geübt, zusammen <strong>${minutenGesamt} Minuten</strong>.</div>
+      <div>${schnitt !== null ? 'Durchschnittliche Erfolgsnote: <strong>' + schnitt.toFixed(1) + '</strong> von 10' : 'Noch keine benotbare Lektion (unter fünf Aufgaben wird nicht benotet).'}</div>
+    </div>
+    <div id='kalDetail'></div>
+    <button class='secondary-btn' id='kalZurueck' style='margin-top:14px;'>&larr; Zurück zum Profil</button>
+  `;
+  document.getElementById('kalZurueckM').onclick = () => { kalMonat--; if (kalMonat < 1) { kalMonat = 12; kalJahr--; } renderLernkalender(); };
+  document.getElementById('kalVorM').onclick = () => { kalMonat++; if (kalMonat > 12) { kalMonat = 1; kalJahr++; } renderLernkalender(); };
+  document.getElementById('kalZurueck').onclick = renderProfile;
+  app.querySelectorAll('.kal-zelle[data-tag]').forEach(b => b.onclick = () => {
+    const tag = +b.dataset.tag;
+    const eintraege = proTag[tag] || [];
+    const ziel = document.getElementById('kalDetail');
+    if (!eintraege.length) { ziel.innerHTML = `<div class='card' style='margin-top:12px;'>Am ${tag}. ${KAL_MONATE[kalMonat-1]} wurde nicht geübt.</div>`; return; }
+    ziel.innerHTML = `<div class='card' style='align-items:stretch; margin-top:12px;'>
+      <div style='font-weight:600;'>${tag}. ${KAL_MONATE[kalMonat-1]} ${kalJahr}</div>
+      ${eintraege.map(e => {
+        const art = KAL_ARTEN.filter(a => a.id === kalArtVon(e))[0] || KAL_ARTEN[0];
+        const note = kalNote(e);
+        const uhr = new Date(e.t || 0);
+        return `<div class='kal-zeile'><i style='background:${art.farbe}'></i>
+          <span class='kz-name'>${kalName(e)}${e.pm ? ' <em>(Probe)</em>' : ''}</span>
+          <span class='kz-zahl'>${kalMinuten(e)} Min</span>
+          <span class='kz-zahl'>${e.ok || 0}/${e.n || 0}</span>
+          <span class='kz-note'>${note !== null ? note : '–'}</span></div>`;
+      }).join('')}
+    </div>`;
+  });
+  attachNav();
+}
 /* ---------- Fach-Umschalter ---------- */
 const MA_DAUER_SEC = 300;
 let maTimerId = null;
+/* v92: echte Lektionsdauer statt der nominellen fuenf Minuten. Wer nach
+   zwei Minuten auf Schluss drueckt, hat zwei Minuten geuebt - im
+   Lernkalender soll das auch so stehen. */
+let maStart = 0, gtStart = 0, vtStart = 0;
+function maDauerMs() { return maStart ? Math.min(MA_DAUER_SEC*1000, Date.now() - maStart) : MA_DAUER_SEC*1000; }
+function gtDauerMs() { return gtStart ? Math.min(GT_DAUER_SEC*1000, Date.now() - gtStart) : GT_DAUER_SEC*1000; }
+function vtDauerMs() { return vtStart ? Math.min(VT_DAUER_SEC*1000, Date.now() - vtStart) : VT_DAUER_SEC*1000; }
 function aktivesFach() { return progress.fach === 'ma' ? 'ma' : 'en'; }
 function fachLeiste() {
   const f = aktivesFach();
@@ -8347,7 +8604,8 @@ function renderProfile() {
     <p class="map-sub" style="font-size:1rem;">Einstellungen für lautes Vorlesen, größere Schrift und mehr Wiederholung folgen hier in einer späteren Ausbaustufe.</p>
     <!-- v86: Admin-Maske fuer die Probenvorbereitung. Bewusst hier unten und
          sachlich benannt - das ist Joules Schalter, nicht Cyrils. -->
-    <button class="secondary-btn" id="profilePmBtn" style="margin-top:18px;">🗓️ Probenvorbereitung einstellen</button>
+    <button class="secondary-btn" id="profileKalBtn" style="margin-top:18px;">📅 Lernkalender (nur für Eltern)</button>
+    <button class="secondary-btn" id="profilePmBtn" style="margin-top:10px;">🗓️ Probenvorbereitung einstellen</button>
     <button class="secondary-btn" id="profileBackBtn">← Zurück zur Weltkarte</button>
   `;
   document.getElementById('profileStatsBtn').onclick = renderStatistik;
@@ -8359,7 +8617,8 @@ function renderProfile() {
   app.querySelectorAll('.char-tile').forEach(btn => {
     btn.onclick = () => speak(btn.dataset.spruch);
   });
-  document.getElementById('profilePmBtn').onclick = renderPruefmodus;
+  document.getElementById('profileKalBtn').onclick = renderLernkalender;
+  document.getElementById('profilePmBtn').onclick = () => renderPruefmodus();
   document.getElementById('profileBackBtn').onclick = renderMap;
   attachNav();
 }
@@ -16773,7 +17032,7 @@ function newWordsPerSessionCap(islandId, order) {
      was tatsaechlich faellig ist; bei duenner Lage bleibt ein neues Wort
      erlaubt, damit nie eine leere Sitzung entsteht. */
   try {
-    const pmA = pmAktiv();
+    const pmA = pmAktiv('en');   /* v92: gedrosselt wird nur der englische Wortschatz */
     if (pmA) {
       const tagPlan = pmPlanTag(pmA, pmA.nr);
       if (!tagPlan.neueWoerter) {
@@ -19406,7 +19665,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v91b';
+const APP_VERSION = 'v92';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
