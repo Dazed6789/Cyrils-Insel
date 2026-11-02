@@ -265,6 +265,17 @@ button{font-family:var(--font-main); letter-spacing:var(--letter-spacing-base); 
 .kz-name{flex:1;}
 .kz-zahl{color:#8A8A8A;font-size:.85rem;white-space:nowrap;}
 .kz-note{font-weight:700;min-width:1.6em;text-align:right;}
+.meta-leiste{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 2px;}
+.meta-frage{font-size:.86rem;color:#8A8A8A;}
+.meta-knopf{padding:5px 12px;font-size:.86rem;border:1px solid #D8C3A5;border-radius:999px;background:#FFF;cursor:pointer;}
+.meta-knopf.an{background:#C8A063;border-color:#C8A063;color:#2A1E07;font-weight:700;}
+.meta-vorsatz{display:flex;flex-direction:column;gap:6px;}
+.meta-vorsatz-knopf{text-align:left;padding:9px 12px;font-size:.92rem;border:2px solid #E4DCCF;border-radius:10px;background:#FFF;cursor:pointer;font-family:inherit;color:inherit;}
+.meta-vorsatz-knopf.an{border-color:#C8A063;background:#FFF8E6;font-weight:600;}
+.meta-staerke{margin:8px 0;padding:8px 11px;border-radius:9px;background:#EDF8EE;font-size:.95rem;}
+.meta-pause{margin:8px 0;padding:8px 11px;border-radius:9px;background:#EFF5F7;font-size:.92rem;}
+.meta-kalib{margin:6px 0 2px;font-size:.93rem;line-height:1.4;}
+.meta-vorsatz-oben{margin:0 0 8px;padding:7px 11px;border-radius:9px;background:#FFF8E6;font-size:.88rem;}
 .thema-liste{display:flex;flex-direction:column;gap:8px;}
 .thema-karte{display:block;text-align:left;background:#FFF;border:2px solid #D8C3A5;border-radius:12px;padding:11px 14px;cursor:pointer;font:inherit;color:inherit;position:relative;}
 .thema-karte.gemischt{border-color:#C8A063;background:#FFF8E6;}
@@ -4785,7 +4796,8 @@ function renderGrammatiktrainer() {
       </div>
     </div>`;
   app.querySelectorAll('[data-thema]').forEach(b => b.onclick = () => gtLektion(b.dataset.thema));
-  document.getElementById('gtZurueck').onclick = () => renderMap();
+  nachDemZeichnen(false);
+  document.getElementById('gtZurueck').onclick = () => renderLernen();
 }
 
 /* ---------- Die Lektion -------------------------------------------------- */
@@ -4808,7 +4820,7 @@ function gtLektion(thema) {
     if (el) { el.textContent = zeitText(); el.classList.toggle('knapp', restSek() <= 30); }
     if (restSek() <= 0) { laeuftAb = true; clearInterval(gtTimerId); gtTimerId = null; }
   }, 1000);
-  function beenden() { if (gtTimerId) { clearInterval(gtTimerId); gtTimerId = null; } session = null; gtBilanz(thema, runde, gesamt, treffer, proMuster, fehler); }
+  function beenden() { if (gtTimerId) { clearInterval(gtTimerId); gtTimerId = null; } session = null; gtBilanz(thema, runde, gesamt, treffer, proMuster, fehler, gtMeta); }
 
   /* Die Tabelle aus dem Arbeitsblatt. In den ersten beiden Durchlaeufen steht
      sie dauerhaft da - Joules Vorgabe, ans Thema heranfuehren. Danach nur noch
@@ -4822,6 +4834,8 @@ function gtLektion(thema) {
   }
 
   let aufgabe = null, phase = 'haupt';
+  let gtSicher = null;
+  const gtMeta = [];
   function zeichne() {
     const teil = phase === 'nach' ? aufgabe.nachfrage : aufgabe;
     app.innerHTML = `
@@ -4836,6 +4850,7 @@ function gtLektion(thema) {
           <div class='q-topic'>${aufgabe.muster === 'A' ? 'Pronomen' : 'to be'} · Stufe ${plan.stufe}</div>
           <div class='vt-anweisung'>${teil.anweisung}</div>
           <div class='gt-zeile'>${aufgabe.zeile}</div>
+          ${phase === 'haupt' ? metaLeiste() : ''}
           <div class='options single-col' id='gtOpts'>
             ${teil.optionen.map((o,i) => `<button class='opt-btn' data-i='${i}'>${o.t}</button>`).join('')}
           </div>
@@ -4844,6 +4859,8 @@ function gtLektion(thema) {
         </div>
       </div>`;
     document.getElementById('gtStop').onclick = () => { laeuftAb = true; beenden(); };
+    nachDemZeichnen(true, () => { if (gtTimerId) { clearInterval(gtTimerId); gtTimerId = null; } session = null; });
+    if (phase === 'haupt') metaLeisteBinden(s => { gtSicher = s; });
     let schonFalsch = false;
     app.querySelectorAll('#gtOpts .opt-btn').forEach(b => b.onclick = () => {
       if (b.disabled) return;
@@ -4851,6 +4868,9 @@ function gtLektion(thema) {
       if (o.ok) {
         b.classList.add('correct');
         app.querySelectorAll('#gtOpts .opt-btn').forEach(x => x.disabled = true);
+        /* v95: auch bei richtig die Begruendung zeigen. */
+        const fOk = document.getElementById('gtFeedback');
+        if (fOk) fOk.innerHTML = `<span class='ma-gut'>Richtig.</span><span class='vt-zusatz'>${aufgabe.erklaerung}</span>`;
         loesung(!schonFalsch);
       } else {
         schonFalsch = true; b.classList.add('retry'); b.disabled = true; feedback(false);
@@ -4870,6 +4890,8 @@ function gtLektion(thema) {
       return;
     }
     const ok = aufgabe.nachfrage ? (!!aufgabe._ersterOk && ersterVersuchOk) : ersterVersuchOk;
+    gtMeta.push({ sicher: gtSicher, ok: ok });
+    gtSicher = null;
     gesamt++; if (ok) treffer++;
     const m = aufgabe.muster;
     proMuster[m] = proMuster[m] || { n:0, ok:0 };
@@ -4898,7 +4920,7 @@ function gtLektion(thema) {
 }
 
 /* ---------- Bilanz ------------------------------------------------------- */
-function gtBilanz(thema, runde, gesamt, treffer, proMuster, fehler) {
+function gtBilanz(thema, runde, gesamt, treffer, proMuster, fehler, gtMeta) {
   const quote = gesamt ? Math.round(treffer / gesamt * 100) : 0;
   progress.gtRunden = progress.gtRunden || { pronomen:0, tobe:0, beides:0 };
   /* v85: Der Aufstieg haengt jetzt an der Leistung, nicht nur an der Zahl der
@@ -4936,18 +4958,24 @@ function gtBilanz(thema, runde, gesamt, treffer, proMuster, fehler) {
         <div class='vt-quote'>${quote}%</div>
         <div class='map-sub' style='margin:0 0 12px;'>${treffer} von ${gesamt} Aufgaben auf Anhieb richtig</div>
         <p class='vt-spruch'>${spruch}</p>
+        ${metaStaerkeHtml(proMuster, musterName)}
+        ${(() => { const k = metaBilanzText(gtMeta || []); return k ? `<div class='meta-kalib'>${k}</div>` : ''; })()}
+        ${metaPauseHtml()}
         ${lohn && !lohn.schonHeute && (lohn.gems || lohn.sec) ? `<div class='vt-lohn'>+${lohn.gems} 💎 und +${Math.round(lohn.sec/60)} Min Spielzeit</div>` : ''}
         ${Object.keys(proMuster).length ? `<div class='vt-block-titel'>Nach Aufgabenart</div><div class='gt-balken'>${Object.keys(proMuster).map(k => { const p = proMuster[k]; const q = Math.round(p.ok/p.n*100); return `<div class='gt-balken-zeile'><span>${musterName[k]||k}</span><span class='gt-balken-spur'><span class='gt-balken-fuell' style='width:${q}%'></span></span><span class='gt-balken-zahl'>${q}%</span></div>`; }).join('')}</div>` : ''}
         ${fehler.length ? `<div class='vt-block-titel'>Nochmal anschauen</div><div class='gt-fehlerliste'>${fehler.map(f => `<div class='gt-fehler'><span class='gt-fehler-satz'>${f.satz}</span><span class='vt-zusatz'>${f.erklaerung}</span></div>`).join('')}</div>` : ''}
         <div class='map-sub' style='margin-top:12px;font-size:.85rem;'>Nächster Durchlauf: Stufe ${naechsteStufe} von 4${naechsteStufe >= 4 ? ' – alle Aufgabenarten, auch verneint.' : ''}${gesamt >= 5 && !aufgestiegen ? ' – wir bleiben auf dieser Stufe, bis sie sicher sitzt.' : ''}</div>
+        ${gesamt >= 5 ? metaVorsatzHtml('grammatik') : ''}
         <button class='primary-btn' id='gtNochmal' style='margin-top:14px;'>Nochmal 5 Minuten</button>
         <button class='secondary-btn' id='gtAndere' style='margin-top:8px;'>Anderes Thema</button>
         <button class='secondary-btn' id='gtFertig' style='margin-top:8px;'>Fertig</button>
       </div>
     </div>`;
+  nachDemZeichnen(false);
+  metaVorsatzBinden();
   document.getElementById('gtNochmal').onclick = () => gtLektion(thema);
   document.getElementById('gtAndere').onclick = () => renderGrammatiktrainer();
-  document.getElementById('gtFertig').onclick = () => renderMap();
+  document.getElementById('gtFertig').onclick = () => renderLernen();
 }
 
 /* ---------- Auswahl: Buch, Unit, Thema ---------------------------------- */
@@ -4994,7 +5022,8 @@ function renderVokabeltraining() {
       if (i >= 0) cats.splice(i, 1); else cats.push(c);
       zeichne();
     });
-    document.getElementById('vtZurueck').onclick = () => renderMap();
+    nachDemZeichnen(false);
+  document.getElementById('vtZurueck').onclick = () => renderLernen();
     const start = document.getElementById('vtStart');
     if (start) start.onclick = () => {
       progress.vtAuswahl = { units: units.slice(), cats: cats.slice() };
@@ -5070,7 +5099,11 @@ function vtLektion(ids) {
         ${aufgabe}
       </div>`;
   }
-  function stopKnopf() { const b = document.getElementById('vtStop'); if (b) b.onclick = () => { laeuftAb = true; beenden(); }; }
+  function stopKnopf() {
+    const b = document.getElementById('vtStop');
+    if (b) b.onclick = () => { laeuftAb = true; beenden(); };
+    nachDemZeichnen(true, () => { laeuftAb = true; session = null; });
+  }
 
   /* Welche Abfrageart kommt dran? Reihenfolge gewuerfelt, Anteile fest. */
   function naechste() {
@@ -5253,9 +5286,10 @@ function vtBilanz(ergebnis, ids, gestellt) {
         <button class='secondary-btn' id='vtFertig' style='margin-top:8px;'>Fertig</button>
       </div>
     </div>`;
+  nachDemZeichnen(false);
   document.getElementById('vtNochmal').onclick = () => vtLektion(ids);
   document.getElementById('vtAndere').onclick = () => renderVokabeltraining();
-  document.getElementById('vtFertig').onclick = () => renderMap();
+  document.getElementById('vtFertig').onclick = () => renderLernen();
 }
 
 function startSpecial(id) {
@@ -5624,6 +5658,35 @@ function renderNav(active) {
     { key: 'profile', label: 'Profil', icon: 'icon_nav_profile' },
   ];
   return `<div class="main-nav">${tabs.map(t => `<button class="nav-tab ${t.key === active ? 'active' : ''}" data-nav="${t.key}"><img class="nav-icon" src="${IMAGE_DATA[t.icon]}" alt="">${t.label}</button>`).join('')}</div>`;
+}
+/* =========================================================================
+   v95 (Joules Meldung 02.11.2026): aus den Sondermissionen kam man nicht
+   mehr zurueck. Ursache war nicht die Probenvorbereitung, sondern dass
+   renderMissionHeader() die Navigationsleiste zwar ZEICHNET, die
+   Klick-Handler aber aus attachNav() kommen - und das rief kein einziger
+   Lektionsbildschirm auf. Die Leiste sah bedienbar aus und war tot.
+
+   Statt attachNav() sieben Mal einzeln nachzutragen gibt es jetzt diesen
+   Helfer. Jeder Lektionsbildschirm ruft ihn am Ende auf - damit der
+   naechste neue Bildschirm denselben Fehler nicht wiederholt.
+
+   laufendeLektion: wenn true, wird vor dem Verlassen nachgefragt. Ohne das
+   verliert ein Fehltipp den ganzen Durchlauf - und vertippen tut er sich
+   leicht.
+   ========================================================================= */
+function nachDemZeichnen(laufendeLektion, beimVerlassen) {
+  document.querySelectorAll('[data-fach]').forEach(b => { b.onclick = () => fachWechseln(b.dataset.fach); });
+  document.querySelectorAll('[data-nav]').forEach(btn => {
+    btn.onclick = () => {
+      if (laufendeLektion && !confirm('Lektion beenden? Dein Ergebnis bis hierher bleibt gespeichert.')) return;
+      if (typeof beimVerlassen === 'function') { try { beimVerlassen(); } catch (e) {} }
+      try { restoreRealProgressIfTestMode(); } catch (e) {}
+      const ziel = btn.dataset.nav;
+      if (ziel === 'learn') renderLernen();
+      else if (ziel === 'build') renderSpiele();
+      else if (ziel === 'profile') renderProfile();
+    };
+  });
 }
 function attachNav() {
   /* v88: der Fach-Umschalter haengt mit an attachNav, damit er auf jedem
@@ -7160,6 +7223,7 @@ function maSaLektion(themaId) {
         </div>
       </div>`;
     document.getElementById('maStop').onclick = beenden;
+    nachDemZeichnen(true, () => { if (maTimerId) { clearInterval(maTimerId); maTimerId = null; } session = null; });
     const blatt = app.querySelector('.ma-blatt');
     if (blatt) blatt.addEventListener('toggle', () => { if (blatt.open) maBlattStarten(); });
     const vor = document.getElementById('saVorlesen');
@@ -7171,7 +7235,7 @@ function maSaLektion(themaId) {
     const f = document.getElementById('maFeedback');
     if (!f) return;
     f.className = 'vt-rueckmeldung ' + (ok ? 'gut' : 'schlecht');
-    f.innerHTML = ok ? `<span class='ma-gut'>${text || 'Richtig.'}</span>` : `<span class='vt-zusatz'>${text || ''}</span>`;
+    f.innerHTML = ok ? `<span class='ma-gut'>${text || 'Richtig.'}</span>` + (fall && fall.tipp && text !== fall.tipp ? `<span class='vt-zusatz'>${fall.tipp}</span>` : '') : `<span class='vt-zusatz'>${text || ''}</span>`;
   }
 
   function binden() {
@@ -7426,6 +7490,8 @@ function maLektionLauf(bereichId, themaId) {
   const proTyp = {};
   const fehler = [];
   let aufgabe = null, eingabe = '', schonFalsch = false, ordnenIdx = 0;
+  let sicherheit = null;
+  const metaDaten = [];
 
   function restSek() { return Math.max(0, Math.round((ende - Date.now()) / 1000)); }
   function zeitText() { const s = restSek(); return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0'); }
@@ -7438,18 +7504,19 @@ function maLektionLauf(bereichId, themaId) {
   function beenden() {
     if (maTimerId) { clearInterval(maTimerId); maTimerId = null; }
     session = null;
-    maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler, themaId);
+    maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler, themaId, metaDaten);
   }
 
   function naechste() {
     aufgabe = trainer.aufgabe(runde, plan);
-    eingabe = ''; schonFalsch = false; ordnenIdx = 0;
+    eingabe = ''; schonFalsch = false; ordnenIdx = 0; sicherheit = null;
     zeichne();
   }
 
   function werten(ok) {
     gesamt++;
     if (ok) treffer++;
+    metaDaten.push({ sicher: sicherheit, ok: ok });
     const ty = aufgabe.typ;
     proTyp[ty] = proTyp[ty] || { n: 0, ok: 0 };
     proTyp[ty].n++; if (ok) proTyp[ty].ok++;
@@ -7466,8 +7533,11 @@ function maLektionLauf(bereichId, themaId) {
     const f = document.getElementById('maFeedback');
     if (!f) return;
     f.className = 'vt-rueckmeldung ' + (ok ? 'gut' : 'schlecht');
+    /* v95: Begruendung jetzt AUCH bei richtig. Die EEF-Auswertung sagt es
+       ausdruecklich: Rueckmeldung ist wichtig, wenn etwas stimmt, nicht nur
+       wenn es falsch ist. Die Erklaerung lag ohnehin schon vor. */
     f.innerHTML = ok
-      ? '<span class="ma-gut">Richtig.</span>'
+      ? '<span class="ma-gut">Richtig.</span><span class="vt-zusatz">' + aufgabe.erklaerung + '</span>'
       : '<span class="ma-loesung">' + aufgabe.loesung + '</span><span class="vt-zusatz">' + aufgabe.erklaerung + '</span>';
   }
 
@@ -7493,8 +7563,10 @@ function maLektionLauf(bereichId, themaId) {
         </div>
         <div class='card vt-karte'>
           <div class='q-topic'>${thema ? thema.name : trainer.titel} · Stufe ${plan.stufe}</div>
+          ${gesamt === 0 && metaLetzterVorsatz('mathe') ? `<div class='meta-vorsatz-oben'>Dein Vorsatz: ${metaLetzterVorsatz('mathe')}</div>` : ''}
           <div class='ma-kopf'><div class='vt-anweisung'>${aufgabe.anweisung}</div>
           <div class='ma-zeile'>${aufgabe.zeile}</div></div>
+          ${metaLeiste()}
           ${eingabeBlock}
           <div class='vt-rueckmeldung' id='maFeedback'></div>
           ${trainer.hilfe(aufgabe, plan.stufe <= 1)}
@@ -7502,6 +7574,8 @@ function maLektionLauf(bereichId, themaId) {
         </div>
       </div>`;
     document.getElementById('maStop').onclick = beenden;
+    nachDemZeichnen(true, () => { if (maTimerId) { clearInterval(maTimerId); maTimerId = null; } session = null; });
+    metaLeisteBinden(s => { sicherheit = s; });
     const blatt = app.querySelector('.ma-blatt');
     if (blatt) blatt.addEventListener('toggle', () => { if (blatt.open) maBlattStarten(); });
 
@@ -7586,7 +7660,7 @@ const MA_TYP_NAME = {
   vergleich: 'Vergleichen', ordnen: 'Ordnen', zeitspanne: 'Zeitspannen', einheit: 'Fehlende Einheit',
   weiter: 'Mehr und weniger als', bruch: 'Bruchteile' };
 
-function maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler, themaId) {
+function maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler, themaId, metaDaten) {
   const trainer = MA_TRAINER[bereichId];
   const thema = maThema(bereichId, themaId);
   const rundenKey = maRundenKey(bereichId, themaId);
@@ -7628,14 +7702,20 @@ function maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler, themaId) {
         <div class='vt-quote'>${quote}%</div>
         <div class='map-sub' style='margin:0 0 12px;'>${treffer} von ${gesamt} Aufgaben auf Anhieb richtig</div>
         <p class='vt-spruch'>${spruch}</p>
+        ${metaStaerkeHtml(proTyp, MA_TYP_NAME)}
+        ${(() => { const k = metaBilanzText(metaDaten || []); return k ? `<div class='meta-kalib'>${k}</div>` : ''; })()}
+        ${metaPauseHtml()}
         ${lohn && !lohn.schonHeute && lohn.gems ? `<div class='vt-lohn'>+${lohn.gems} 💎 und +${Math.round(lohn.sec/60)} Min Spielzeit</div>` : ''}
         ${Object.keys(proTyp).length ? `<div class='vt-block-titel'>Nach Aufgabenart</div><div class='gt-balken'>${Object.keys(proTyp).map(k => { const p = proTyp[k]; const q = Math.round(p.ok/p.n*100); return `<div class='gt-balken-zeile'><span>${MA_TYP_NAME[k]||k}</span><span class='gt-balken-spur'><span class='gt-balken-fuell' style='width:${q}%'></span></span><span class='gt-balken-zahl'>${q}%</span></div>`; }).join('')}</div>` : ''}
         ${fehler.length ? `<div class='vt-block-titel'>Nochmal anschauen</div><div class='gt-fehlerliste'>${fehler.slice(0,8).map(f => `<div class='gt-fehler'><span class='gt-fehler-satz'>${f.satz}</span><span class='vt-zusatz'>${f.erklaerung}</span></div>`).join('')}</div>` : ''}
         <div class='map-sub' style='margin-top:12px;font-size:.85rem;'>Nächster Durchlauf: Stufe ${naechsterPlan.stufe} von 3${naechsterPlan.bereiche ? ', dabei ' + naechsterPlan.bereiche.map(b => MA_GROESSEN[b].titel).join(', ') : ''}${gesamt >= 5 && !aufgestiegen ? ' – wir bleiben auf dieser Stufe, bis sie sicher sitzt.' : ''}</div>
+        ${gesamt >= 5 ? metaVorsatzHtml('mathe') : ''}
         <button class='primary-btn' id='maNochmal' style='margin-top:14px;'>Nochmal 5 Minuten</button>
         <button class='secondary-btn' id='maZurWerkstatt' style='margin-top:8px;'>Anderes Thema</button>
       </div>
     </div>`;
+  nachDemZeichnen(false);
+  metaVorsatzBinden();
   document.getElementById('maNochmal').onclick = () => maLektion(bereichId, themaId);
   document.getElementById('maZurWerkstatt').onclick = () => renderMaThemen(bereichId);
 }
@@ -8586,6 +8666,107 @@ function renderLernkalender() {
   });
   attachNav();
 }
+/* =========================================================================
+   v95: Metakognition. Nach der Evidenzlage der mit Abstand groesste Hebel,
+   den diese App noch frei hatte - die EEF beziffert Metakognition und
+   Selbstregulation auf +8 Monate Lernfortschritt aus 355 Studien, und die
+   App tat dazu bisher nichts: sie sagte ihm, was richtig war, liess ihn
+   aber nie vorher einschaetzen oder hinterher ueberlegen.
+
+   Zwei bewusst winzige Eingriffe, damit es nicht zur Huerde wird:
+   1. Vor der Antwort zwei Knoepfe - sicher oder unsicher. Freiwillig.
+   2. Nach der Lektion EIN Vorsatz aus drei Vorgaben, der beim naechsten
+      Mal oben steht.
+
+   Dazu die Kalibrierung: wie gut seine Selbsteinschaetzung zur Leistung
+   passt. Das ist der eigentliche metakognitive Gehalt - zu merken, wann
+   man sich sicher fuehlt und es doch nicht ist.
+   ========================================================================= */
+const META_VORSAETZE = [
+  { id:'lesen',   text:'Die Aufgabe zweimal lesen, bevor ich antworte.' },
+  { id:'hilfe',   text:'Öfter in die Merkhilfe schauen.' },
+  { id:'ruhe',    text:'Langsamer machen und nicht raten.' },
+  { id:'nachrechnen', text:'Am Ende kurz nachrechnen, ob es stimmen kann.' },
+  { id:'markieren', text:'Bei Textaufgaben erst das Wichtige markieren.' }
+];
+function metaVorsatzText(id) { const v = META_VORSAETZE.filter(x => x.id === id)[0]; return v ? v.text : ''; }
+function metaLetzterVorsatz(bereich) {
+  const v = progress.metaVorsatz && progress.metaVorsatz[bereich];
+  return v ? metaVorsatzText(v) : '';
+}
+function metaVorsatzSetzen(bereich, id) {
+  progress.metaVorsatz = progress.metaVorsatz || {};
+  progress.metaVorsatz[bereich] = id;
+  try { saveProgress(); } catch (e) {}
+}
+/* Die zwei Knoepfe. Kein Zwang: wer nichts tippt, verliert nichts. */
+function metaLeiste() {
+  return `<div class='meta-leiste'>
+    <span class='meta-frage'>Wie sicher bist du?</span>
+    <button class='meta-knopf' data-sicher='1'>sicher</button>
+    <button class='meta-knopf' data-sicher='0'>unsicher</button>
+  </div>`;
+}
+function metaLeisteBinden(setzen) {
+  document.querySelectorAll('.meta-knopf').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.meta-knopf').forEach(x => x.classList.toggle('an', x === b));
+    setzen(b.dataset.sicher === '1');
+  });
+}
+/* Kalibrierung: der Satz, der aus der Selbsteinschaetzung Lernen macht. */
+function metaBilanzText(daten) {
+  const sicher = daten.filter(d => d.sicher === true);
+  const unsicher = daten.filter(d => d.sicher === false);
+  if (sicher.length < 2 && unsicher.length < 2) return '';
+  const q = a => a.length ? Math.round(a.filter(d => d.ok).length / a.length * 100) : null;
+  const qs = q(sicher), qu = q(unsicher);
+  if (qs !== null && qu !== null) {
+    if (qs >= qu + 20) return `Deine Einschätzung stimmt: wo du <strong>sicher</strong> warst, hattest du ${qs} % richtig, bei <strong>unsicher</strong> ${qu} %. Du merkst selbst, was sitzt.`;
+    if (qu > qs) return `Interessant: bei <strong>unsicher</strong> hattest du ${qu} % richtig, bei <strong>sicher</strong> nur ${qs} %. Du kannst mehr, als du dir zutraust.`;
+    return `Sicher und unsicher lagen fast gleich (${qs} % zu ${qu} %). Hör beim nächsten Mal genauer in dich hinein.`;
+  }
+  if (qs !== null) return `Du warst meistens sicher – und hattest ${qs} % richtig.`;
+  return `Du warst meistens unsicher – und hattest trotzdem ${qu} % richtig.`;
+}
+/* Die Vorsatz-Auswahl fuer die Bilanz. */
+function metaVorsatzHtml(bereich) {
+  const aktuell = (progress.metaVorsatz || {})[bereich];
+  return `<div class='vt-block-titel'>Was nimmst du dir fürs nächste Mal vor?</div>
+    <div class='meta-vorsatz' data-bereich='${bereich}'>
+      ${META_VORSAETZE.map(v => `<button class='meta-vorsatz-knopf ${aktuell === v.id ? 'an' : ''}' data-v='${v.id}'>${v.text}</button>`).join('')}
+    </div>`;
+}
+function metaVorsatzBinden() {
+  const box = document.querySelector('.meta-vorsatz');
+  if (!box) return;
+  box.querySelectorAll('.meta-vorsatz-knopf').forEach(b => b.onclick = () => {
+    box.querySelectorAll('.meta-vorsatz-knopf').forEach(x => x.classList.toggle('an', x === b));
+    metaVorsatzSetzen(box.dataset.bereich, b.dataset.v);
+  });
+}
+/* Staerkensatz: welche Aufgabenart lief am besten. Die ADHS-Leitlinie
+   verlangt ausdruecklich eine staerkenorientierte Rueckmeldung, die
+   Hoffnung und Motivation erzeugt - und die Bilanz nannte bisher nur die
+   Fehler. */
+function metaStaerkeHtml(proTyp, namen) {
+  const arten = Object.keys(proTyp).filter(k => proTyp[k].n >= 2);
+  if (!arten.length) return '';
+  arten.sort((a, b) => (proTyp[b].ok / proTyp[b].n) - (proTyp[a].ok / proTyp[a].n));
+  const beste = arten[0];
+  const q = Math.round(proTyp[beste].ok / proTyp[beste].n * 100);
+  if (q < 50) return '';
+  return `<div class='meta-staerke'>Am besten lief <strong>${(namen[beste] || beste)}</strong> mit ${q} %.</div>`;
+}
+/* Bewegungspause: kuerzere Konzentrationsphasen mit Bewegung sind in den
+   ADHS-Leitlinien eine der wenigen konkret benannten Anpassungen. */
+function metaPauseHtml() {
+  const heute = dayStamp(0);
+  const minutenHeute = (progress.session_log || []).filter(e => e.d === heute && e.done)
+    .reduce((s, e) => s + (e.ms || 0) / 60000, 0);
+  if (minutenHeute < 10) return '';
+  return `<div class='meta-pause'>Du hast heute schon ${Math.round(minutenHeute)} Minuten geübt. Steh mal auf und streck dich – eine Minute reicht.</div>`;
+}
+
 /* ---------- Fach-Umschalter ---------- */
 const MA_DAUER_SEC = 300;
 let maTimerId = null;
@@ -8852,7 +9033,12 @@ function renderProfile() {
     <p class="map-sub" style="font-size:1rem;">Einstellungen für lautes Vorlesen, größere Schrift und mehr Wiederholung folgen hier in einer späteren Ausbaustufe.</p>
     <!-- v86: Admin-Maske fuer die Probenvorbereitung. Bewusst hier unten und
          sachlich benannt - das ist Joules Schalter, nicht Cyrils. -->
-    <button class="secondary-btn" id="profileKalBtn" style="margin-top:18px;">📅 Lernkalender (nur für Eltern)</button>
+    <div class="card" style="align-items:stretch; gap:8px; margin-top:18px;">
+      <div style="font-weight:600;">Fokusmodus</div>
+      <p class="map-sub" style="font-size:.86rem; margin:0;">Blendet Edelsteine, Streak und Spielzeit während einer Lektion aus. Weniger Ablenkung neben der Aufgabe.</p>
+      <button class="secondary-btn" id="fokusBtn">${progress.fokusmodus ? '✅ Fokusmodus ist an' : 'Fokusmodus einschalten'}</button>
+    </div>
+    <button class="secondary-btn" id="profileKalBtn" style="margin-top:14px;">📅 Lernkalender (nur für Eltern)</button>
     <button class="secondary-btn" id="profilePmBtn" style="margin-top:10px;">🗓️ Probenvorbereitung einstellen</button>
     <button class="secondary-btn" id="profileBackBtn">← Zurück zur Weltkarte</button>
   `;
@@ -8865,6 +9051,7 @@ function renderProfile() {
   app.querySelectorAll('.char-tile').forEach(btn => {
     btn.onclick = () => speak(btn.dataset.spruch);
   });
+  document.getElementById('fokusBtn').onclick = () => { progress.fokusmodus = !progress.fokusmodus; try { saveProgress(); } catch (e) {} renderProfile(); };
   document.getElementById('profileKalBtn').onclick = renderLernkalender;
   document.getElementById('profilePmBtn').onclick = () => renderPruefmodus();
   document.getElementById('profileBackBtn').onclick = renderMap;
@@ -18844,7 +19031,20 @@ function pickNextExtraStep() {
    (renderNav + renderTopbar) fuer den Missionsscreen zu EINER Zeile zusammen.
    Bewusst nur hier, nicht global: Karte/Profil/Bauwelt behalten ihr
    bestehendes Layout, das war nicht Teil der Spec. */
+/* v95: Fokusmodus. Die ADHS-Leitlinien nennen Reduktion von Ablenkung
+   ausdruecklich als Anpassung. Waehrend einer Lektion sind Edelsteine,
+   Streak und Spielzeit Ablenkung - sie gehoeren auf die Karte, nicht
+   neben die Aufgabe. Schalter im Profil, damit Joule entscheidet. */
+function fokusAn() { return !!progress.fokusmodus; }
 function renderMissionHeader() {
+  if (fokusAn()) {
+    const tabsF = [
+      { key: 'learn', label: 'Lernen', icon: 'icon_nav_learn' },
+      { key: 'build', label: 'Spiele', icon: 'icon_nav_build' },
+      { key: 'profile', label: 'Profil', icon: 'icon_nav_profile' },
+    ];
+    return `<div class="main-nav">${tabsF.map(x => `<button class="nav-tab" data-nav="${x.key}"><img class="nav-icon" src="${IMAGE_DATA[x.icon]}" alt="">${x.label}</button>`).join('')}</div>`;
+  }
   const tabs = [
     { key: 'learn', label: 'Lernen', icon: 'icon_nav_learn' },
     { key: 'build', label: 'Spiele', icon: 'icon_nav_build' },   /* v75: hier stand seit v63 noch "Bauwelt" - die Leiste in der Lernsitzung hiess anders als die auf der Karte */
@@ -19913,7 +20113,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v94';
+const APP_VERSION = 'v95';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
