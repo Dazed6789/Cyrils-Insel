@@ -8915,7 +8915,25 @@ function diagEintraege(tage) {
         name: v ? (v.en + ' – ' + v.de) : wid });
     });
   } catch (e) {}
-  liste.sort((a, b) => (a.quote - b.quote) || (b.n - a.n));
+  /* v97: Sortierung nach Handlungsbedarf, nicht nach nackter Quote.
+     Zwei Korrekturen auf den Rohwert:
+     - Wer sich deutlich verbessert, braucht weniger Aufmerksamkeit - die
+       Foerderung wirkt ja gerade. Solche Eintraege rutschen nach unten.
+     - Wer gerade abfaellt, rutscht nach oben, auch bei noch passabler
+       Quote. Das ist der Fall, den man frueh sehen will.
+     - Eintraege ohne Daten im Fenster (nur Gesamtwert) stehen hinter
+       denen mit frischen Daten; sie koennen alt und laengst erledigt sein. */
+  function diagPrio(e) {
+    let p = e.quote;
+    if (e.trend) {
+      if (e.trend.delta >= 0.15) p += 0.20;
+      else if (e.trend.delta <= -0.15) p -= 0.15;
+    }
+    if (!e.imFenster) p += 0.12;
+    return p;
+  }
+  liste.forEach(e => { e.prio = diagPrio(e); });
+  liste.sort((a, b) => (a.prio - b.prio) || (b.n - a.n));
   return liste;
 }
 /* Lesbarer Name einer Mathe-Fertigkeit. Die Ids sind Technik, keine
@@ -20599,7 +20617,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v97';
+const APP_VERSION = 'v97b';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
