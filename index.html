@@ -234,6 +234,14 @@ button{font-family:var(--font-main); letter-spacing:var(--letter-spacing-base); 
 .sa-satz.an{border-color:#C8A063;background:#FFF8E6;}
 .sa-satz.richtig{border-color:#4CAF50;background:#EDF8EE;}
 .sa-satz.unnoetig{opacity:.45;}
+/* v94: Aufgabentext und Frage bleiben beim Scrollen stehen. Auf dem iPad
+   schiebt das Zahlenfeld die Aufgabe sonst aus dem Bild - und dann raet
+   man statt zu rechnen. */
+.sa-kopf,.ma-kopf{position:sticky;top:0;z-index:5;background:#FFF;padding:6px 0 8px;margin:0 0 8px;border-bottom:1px solid #F0ECE4;}
+.sa-kopf .sa-text{margin:0 0 6px;}
+.sa-kopf .sa-frage,.sa-kopf .sa-rechnung{margin-bottom:0;}
+.ma-kopf .vt-anweisung{margin-bottom:2px;}
+.ma-kopf .ma-zeile{margin:4px 0 2px;}
 .sa-frage{font-size:1.1rem;font-weight:700;margin:6px 0 10px;}
 .sa-rechnung{font-size:1.25rem;font-weight:700;text-align:center;color:#8A6A12;margin-bottom:8px;}
 .sa-vorlesen{margin-top:10px;padding:8px 14px;font-size:.9rem;border:1px solid #D8C3A5;border-radius:9px;background:#FFF;cursor:pointer;}
@@ -7108,32 +7116,34 @@ function maSaLektion(themaId) {
         <div class='sa-text'>${textHtml(true)}</div>
         <div class='sa-frage'>${fall.frage}</div>
         <button class='primary-btn' id='saWeiter'>Fertig</button>`;
+      /* Schritt 1 klebt nicht - dort IST der Text die Aufgabe. */
     } else if (schritt === 1) {
       const opts = saOptionen(fall.gesucht, fall.gesuchtOpt);
       fall._gesuchtOpts = opts;
       block = `<div class='vt-anweisung'>${SA_SCHRITTE[1]}: Was ist gesucht?</div>
-        <div class='sa-text'>${textHtml(false)}</div>
-        <div class='sa-frage'>${fall.frage}</div>
+        <div class='sa-kopf'>${textHtml(false)}<div class='sa-frage'>${fall.frage}</div></div>
         <div class='options single-col' id='saOpts'>${opts.map((o,i) => `<button class='opt-btn' data-i='${i}'>${o.t}</button>`).join('')}</div>`;
     } else if (schritt === 2) {
       const opts = saOptionen(fall.rechnung, fall.rechnungOpt);
       fall._rechnungOpts = opts;
       block = `<div class='vt-anweisung'>${SA_SCHRITTE[2]}: Welche Rechnung passt?</div>
-        <div class='sa-text'>${textHtml(false)}</div>
-        <div class='sa-frage'>${fall.frage}</div>
+        <div class='sa-kopf'>${textHtml(false)}<div class='sa-frage'>${fall.frage}</div></div>
         <div class='options single-col' id='saOpts'>${opts.map((o,i) => `<button class='opt-btn' data-i='${i}'>${o.t}</button>`).join('')}</div>`;
     } else if (schritt === 3) {
       block = `<div class='vt-anweisung'>${gefuehrt ? SA_SCHRITTE[3] + ': Rechne aus.' : 'Löse die Aufgabe.'}</div>
-        <div class='sa-text'>${textHtml(false)}</div>
-        <div class='sa-frage'>${fall.frage}</div>
-        ${gefuehrt ? `<div class='sa-rechnung'>${fall.rechnung}</div>` : ''}
+        <div class='sa-kopf'>${textHtml(false)}<div class='sa-frage'>${fall.frage}</div>
+          ${gefuehrt ? `<div class='sa-rechnung'>${fall.rechnung}</div>` : ''}</div>
         <div class='ma-anzeige' id='maAnzeige'><span id='maEingabe'></span><span class='ma-einheit'>${fall.einheit}</span></div>
         ${maZahlenfeld(false, false, false)}`;
     } else {
       const opts = saOptionen(fall.satz, fall.satzOpt);
       fall._satzOpts = opts;
+      /* v94 (Joules Meldung 02.11.2026): im letzten Schritt fehlte der
+         Aufgabentext - man sollte einen Antwortsatz waehlen, ohne die
+         Aufgabe noch sehen zu koennen. Genau beim Antwortsatz ist der
+         Rueckbezug aber entscheidend: er muss zur FRAGE passen. */
       block = `<div class='vt-anweisung'>${SA_SCHRITTE[4]}: Welcher Satz antwortet auf die Frage?</div>
-        <div class='sa-frage'>${fall.frage}</div>
+        <div class='sa-kopf'>${textHtml(false)}<div class='sa-frage'>${fall.frage}</div></div>
         <div class='options single-col' id='saOpts'>${opts.map((o,i) => `<button class='opt-btn' data-i='${i}'>${o.t}</button>`).join('')}</div>`;
     }
     app.innerHTML = kopf() + `
@@ -7481,8 +7491,8 @@ function maLektionLauf(bereichId, themaId) {
         </div>
         <div class='card vt-karte'>
           <div class='q-topic'>${thema ? thema.name : trainer.titel} · Stufe ${plan.stufe}</div>
-          <div class='vt-anweisung'>${aufgabe.anweisung}</div>
-          <div class='ma-zeile'>${aufgabe.zeile}</div>
+          <div class='ma-kopf'><div class='vt-anweisung'>${aufgabe.anweisung}</div>
+          <div class='ma-zeile'>${aufgabe.zeile}</div></div>
           ${eingabeBlock}
           <div class='vt-rueckmeldung' id='maFeedback'></div>
           ${trainer.hilfe(aufgabe, plan.stufe <= 1)}
@@ -19901,7 +19911,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v93';
+const APP_VERSION = 'v94';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
