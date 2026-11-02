@@ -7358,12 +7358,18 @@ function maBilanz(bereichId, runde, gesamt, treffer, proTyp, fehler, themaId) {
   const naechsterPlan = maPlanFuer(bereichId, themaId, neueRunde);
   let lohn = null;
   if (gesamt >= 8) { try { lohn = maBelohnung(bereichId); } catch (e) {} }
+  /* v92-Korrektur: pmBlockBeenden() loescht den Marker, mit dem erkannt
+     wird, dass die Lektion aus der Probenvorbereitung kam. Beim Live-Test
+     landete deshalb pm:0 im Protokoll, obwohl der Block genau von dort
+     gestartet war - der Lernkalender haette die Probenlektionen nie als
+     solche gezeigt. Das Flag wird jetzt vorher festgehalten. */
+  const imProbenblock = pmBlockLaeuft('ma') ? 1 : 0;
   try { pmBlockBeenden(gesamt); } catch (e) {}
   try {
     progress.session_log = progress.session_log || [];
     progress.session_log.push({ d: dayStamp(0), t: Date.now(), ms: maDauerMs(), n: gesamt, ok: treffer,
       err: gesamt - treffer, steps: gesamt, neu: 0, isl: 'mathe', art: 'mathe_' + bereichId,
-      fach:'ma', pm: pmBlockLaeuft('ma') ? 1 : 0, thema: themaId || null, done: true });
+      fach:'ma', pm: imProbenblock, thema: themaId || null, done: true });
     while (progress.session_log.length > SESSION_LOG_MAX) progress.session_log.shift();
   } catch (e) {}
   try { saveProgress(); } catch (e) {}
