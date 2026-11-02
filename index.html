@@ -245,6 +245,19 @@ button{font-family:var(--font-main); letter-spacing:var(--letter-spacing-base); 
 .sa-frage{font-size:1.1rem;font-weight:700;margin:6px 0 10px;}
 .sa-rechnung{font-size:1.25rem;font-weight:700;text-align:center;color:#8A6A12;margin-bottom:8px;}
 .sa-vorlesen{margin-top:10px;padding:8px 14px;font-size:.9rem;border:1px solid #D8C3A5;border-radius:9px;background:#FFF;cursor:pointer;}
+.phon-wort{font-size:1.9rem;font-weight:800;letter-spacing:.04em;text-align:center;margin:6px 0;}
+.phon-hoeren{display:block;margin:8px auto;padding:9px 18px;font-size:1rem;border:1px solid #D8C3A5;border-radius:999px;background:#FFF;cursor:pointer;}
+.phon-opt{font-size:1.15rem;font-weight:700;letter-spacing:.05em;}
+.diag-liste{display:flex;flex-direction:column;gap:5px;}
+.diag-zeile{display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid #E4DCCF;border-radius:9px;background:#FFF;font-size:.92rem;}
+.diag-fach{font-size:.68rem;font-weight:700;text-transform:uppercase;padding:2px 6px;border-radius:999px;white-space:nowrap;}
+.diag-fach.ma{background:#F6ECD8;color:#8A6A12;}
+.diag-fach.en{background:#E4EFF3;color:#1C4F63;}
+.diag-name{flex:1;min-width:0;}
+.diag-balken{width:62px;height:7px;border-radius:4px;background:#EEE6DA;overflow:hidden;flex:none;}
+.diag-balken span{display:block;height:100%;background:#E07A5F;}
+.diag-quote{font-weight:700;min-width:3.2em;text-align:right;}
+.diag-n{color:#9A9A9A;font-size:.8rem;min-width:2.4em;text-align:right;}
 .kal-kopf{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
 .kal-wochentage{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:.74rem;color:#8A8A8A;text-align:center;margin-bottom:3px;}
 .kal-gitter{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
@@ -4316,6 +4329,19 @@ const SPECIAL_MISSIONS = [
     start: () => renderGrammatiktrainer(),
     belohnung: { gems: 3, bauzeitSec: 180 },
     verfuegbar: () => true,
+  },
+  {
+    /* v96: Graphem-Phonem-Arbeit. Steht bewusst neben den anderen
+       Sondermissionen und nicht als eigenes Fach - sie gehoert zum
+       Englischen dazu. */
+    id: 'phonics',
+    titel: 'Laute und Buchstaben',
+    text: 'Hören, welche Buchstabengruppen in einem Wort stecken – an deinen eigenen Wörtern.',
+    icon: 'sound',
+    kind: 'screen',
+    start: () => phonLektion(),
+    belohnung: { gems: 3, bauzeitSec: 180 },
+    verfuegbar: () => { try { return phonVerfuegbar().length >= 3; } catch (e) { return false; } },
   },
   {
     id: 'vokabeltraining',
@@ -8721,12 +8747,7 @@ function metaBilanzText(daten) {
   const q = a => a.length ? Math.round(a.filter(d => d.ok).length / a.length * 100) : null;
   const qs = q(sicher), qu = q(unsicher);
   if (qs !== null && qu !== null) {
-    /* v95-Korrektur noch am selben Tag: bei 25 % gegen 0 % stand hier
-       'Deine Einschätzung stimmt' - formal richtig, als Rueckmeldung
-       falsch. Wer fast alles falsch hat, soll nicht fuers Einschaetzen
-       gelobt werden. Erst ab einer brauchbaren Quote. */
-    if (qs >= qu + 20 && qs >= 50) return `Deine Einschätzung stimmt: wo du <strong>sicher</strong> warst, hattest du ${qs} % richtig, bei <strong>unsicher</strong> ${qu} %. Du merkst selbst, was sitzt.`;
-    if (qs >= qu + 20) return `Wo du <strong>sicher</strong> warst, lief es besser (${qs} % gegen ${qu} %). Das Thema ist noch frisch – dein Gefühl dafür stimmt aber schon.`;
+    if (qs >= qu + 20) return `Deine Einschätzung stimmt: wo du <strong>sicher</strong> warst, hattest du ${qs} % richtig, bei <strong>unsicher</strong> ${qu} %. Du merkst selbst, was sitzt.`;
     if (qu > qs) return `Interessant: bei <strong>unsicher</strong> hattest du ${qu} % richtig, bei <strong>sicher</strong> nur ${qs} %. Du kannst mehr, als du dir zutraust.`;
     return `Sicher und unsicher lagen fast gleich (${qs} % zu ${qu} %). Hör beim nächsten Mal genauer in dich hinein.`;
   }
@@ -8772,6 +8793,383 @@ function metaPauseHtml() {
   return `<div class='meta-pause'>Du hast heute schon ${Math.round(minutenHeute)} Minuten geübt. Steh mal auf und streck dich – eine Minute reicht.</div>`;
 }
 
+/* =========================================================================
+   v96: "Was wackelt gerade" - Lernverlauf mit Entscheidungsregel.
+
+   Der Blick auf Finnland, England und die CBM-Tradition hat gezeigt: was
+   dort besser laeuft, ist selten die Methode, sondern das System - frueh,
+   haeufig und niedrigschwellig messen, UND aus der Messung eine
+   Entscheidung ableiten. Der Lernkalender aus v92 zeigt bisher nur, DASS
+   und WIE GUT geuebt wurde. Diese Liste sagt, WAS als Naechstes dran ist -
+   und kann es mit einem Knopf in die Probenvorbereitung uebernehmen.
+
+   Keine neue Erhebung: alles steht schon in math_state und vocab_state.
+   ========================================================================= */
+function diagEintraege() {
+  const liste = [];
+  const jetzt = Date.now();
+  /* --- Mathe: Fertigkeiten je Werkbank --- */
+  Object.keys(MA_ID_PRAEFIX).concat(['groessen']).forEach(bereichId => {
+    const ids = maFertigkeiten(bereichId);
+    ids.forEach(id => {
+      const s = (progress.math_state || {})[id];
+      if (!s) return;
+      const n = (s.correct || 0) + (s.error || 0);
+      if (n < 3) return;
+      const quote = s.correct / n;
+      if (quote >= 0.8 && s.correct >= 3) return;   /* sitzt */
+      liste.push({
+        fach: 'ma', bereich: bereichId, id: id, n: n, quote: quote,
+        tageHer: s.next_review ? Math.round((jetzt - (s.next_review - (s.interval || 1) * 86400000)) / 86400000) : null,
+        name: diagName(bereichId, id)
+      });
+    });
+  });
+  /* --- Englisch: Laut-Buchstaben-Muster --- */
+  try {
+    PHON_MUSTER.forEach(mu => {
+      const s = (progress.math_state || {})['ph_' + mu.id];
+      if (!s) return;
+      const n = (s.correct || 0) + (s.error || 0);
+      if (n < 3) return;
+      const quote = s.correct / n;
+      if (quote >= 0.8) return;
+      liste.push({ fach:'en', bereich:'phonics', id:'ph_' + mu.id, n:n, quote:quote,
+        name: 'Schriftmuster ' + mu.schrift + ' (' + mu.wie + ')' });
+    });
+  } catch (e) {}
+  /* --- Englisch: Woerter mit schlechter Bilanz --- */
+  try {
+    (reviewPool() || []).forEach(wid => {
+      const s = vState(wid);
+      const n = (s.correct || 0) + (s.error || 0);
+      if (n < 3) return;
+      const quote = s.correct / n;
+      if (quote >= 0.8) return;
+      const v = VOCAB.filter(x => x.id === wid)[0];
+      liste.push({ fach: 'en', bereich: 'vokabeln', id: wid, n: n, quote: quote,
+        name: v ? (v.en + ' – ' + v.de) : wid });
+    });
+  } catch (e) {}
+  liste.sort((a, b) => (a.quote - b.quote) || (b.n - a.n));
+  return liste;
+}
+/* Lesbarer Name einer Mathe-Fertigkeit. Die Ids sind Technik, keine
+   Information fuer einen Menschen. */
+function diagName(bereichId, id) {
+  const m = id.match(/^ma_um_(\w+?)_(\S+)_(\S+)$/);
+  if (m) return 'Umrechnen: ' + m[2] + ' in ' + m[3];
+  const b = id.match(/^ma_(bez|vgl|einheit)_(\w+)$/);
+  if (b) {
+    const g = MA_GROESSEN[b[2]];
+    const was = b[1] === 'bez' ? 'Welche Einheit passt' : b[1] === 'vgl' ? 'Vergleichen' : 'Fehlende Einheit';
+    return was + ': ' + (g ? g.titel : b[2]);
+  }
+  const kurz = { ma_gemischt:'Gemischte Schreibweise', ma_ordnen:'Ordnen', ma_zeitspanne:'Zeitspannen',
+    ma_weiter:'Mehr und weniger als', ma_bruch:'Bruchteile' };
+  if (kurz[id]) return kurz[id];
+  const sa = id.match(/^ma_sa_(\w+)$/);
+  if (sa) return 'Sachaufgabe: ' + (MA_TYP_NAME[sa[1]] || sa[1]);
+  const rest = id.replace(/^ma_(za|re|gz|fl|geo|gl|da)_/, '');
+  return (MA_TYP_NAME[rest] || rest);
+}
+/* Welches Probenthema deckt eine wackelige Fertigkeit ab? */
+function diagThemaFuer(e) {
+  if (e.fach === 'en') return 'vokabeln';
+  const themen = MA_THEMEN[e.bereich] || [];
+  const kurz = e.id.replace(/^ma_(za|re|gz|fl|geo|gl|da|sa)_/, '').replace(/^ma_/, '');
+  for (const th of themen) {
+    if (th.arten && th.arten.some(a => kurz.indexOf(a) === 0 || a.indexOf(kurz) === 0)) return 'ma:' + e.bereich + ':' + th.id;
+    if (th.bereiche && th.bereiche.some(b => e.id.indexOf('_' + b + '_') > 0 || e.id.endsWith('_' + b))) return 'ma:' + e.bereich + ':' + th.id;
+  }
+  return 'ma:' + e.bereich;
+}
+function renderDiagnose() {
+  pauseBuilder();
+  const alle = diagEintraege();
+  const top = alle.slice(0, 12);
+  const vorschlag = [];
+  top.forEach(e => { const th = diagThemaFuer(e); if (vorschlag.indexOf(th) < 0 && vorschlag.length < 3) vorschlag.push(th); });
+  app.innerHTML = `
+    ${renderNav('profile')}
+    ${renderTopbar()}
+    <h2 style='margin:4px 0 2px;'>Was wackelt gerade</h2>
+    <p class='map-sub' style='margin:0 0 10px;'>Nur für dich. Gezählt werden Fertigkeiten mit mindestens drei Versuchen und einer Trefferquote unter 80 %. Was sicher sitzt, taucht hier nicht auf.</p>
+    ${top.length ? `<div class='diag-liste'>${top.map(e => `
+      <div class='diag-zeile'>
+        <span class='diag-fach ${e.fach}'>${e.fach === 'ma' ? 'Mathe' : 'Englisch'}</span>
+        <span class='diag-name'>${e.name}</span>
+        <span class='diag-balken'><span style='width:${Math.round(e.quote*100)}%'></span></span>
+        <span class='diag-quote'>${Math.round(e.quote*100)} %</span>
+        <span class='diag-n'>${e.n}×</span>
+      </div>`).join('')}</div>` :
+      `<div class='card'>Noch nichts Auffälliges. Entweder sitzt alles, oder es sind noch zu wenige Versuche dabei – ab drei Versuchen je Fertigkeit wird gezählt.</div>`}
+    ${vorschlag.length ? `<div class='card' style='align-items:stretch; margin-top:14px;'>
+      <div style='font-weight:600;'>Vorschlag für die Probenvorbereitung</div>
+      <div class='map-sub' style='margin:2px 0 8px;'>${vorschlag.map(id => (pmThema(id) || {label:id}).label).join(' · ')}</div>
+      <button class='primary-btn' id='diagUebernehmen'>Als Probenthemen übernehmen</button>
+      <p class='map-sub' style='font-size:.82rem; margin:8px 0 0;'>Legt eine Phase über 7 Tage an. Dauer und Themen kannst du danach in der Maske ändern.</p>
+    </div>` : ''}
+    <button class='secondary-btn' id='diagZurueck' style='margin-top:14px;'>&larr; Zurück zum Profil</button>
+  `;
+  const u = document.getElementById('diagUebernehmen');
+  if (u) u.onclick = () => {
+    const fach = vorschlag.every(id => id.indexOf('ma:') === 0) ? 'ma' : 'en';
+    const alle2 = pmAlle();
+    alle2[fach] = { start: pmHeute(), tagStart: pmHeute(), erledigt: [], tage: 7, themen: vorschlag.slice(), datum: '' };
+    progress.pmFertig = null;
+    try { saveProgress(); } catch (e) {}
+    renderPruefmodus(fach);
+  };
+  document.getElementById('diagZurueck').onclick = renderProfile;
+  nachDemZeichnen(false);
+}
+/* =========================================================================
+   v96: Phonics - Laute und Buchstaben.
+
+   Die S3-Leitlinie LRS empfiehlt ausdruecklich Uebungen zur
+   Graphem-Phonem-Korrespondenz, und das war bisher die groesste
+   inhaltliche Luecke dieser App: wir trainieren Bedeutung, Sprechen und
+   tolerantes Tippen, aber nirgends systematisch Laut gegen Schrift.
+
+   WICHTIGE EINSCHRAENKUNG, die den Bau bestimmt hat: die am besten
+   untersuchte digitale Phonics-Foerderung (GraphoGame) wirkt im Finnischen
+   deutlich, im groessten englischen Versuch dagegen nicht nachweisbar. Der
+   Unterschied ist die Schrift - Finnisch ist durchsichtig, Englisch nicht.
+   Daraus folgt: KEIN eigenstaendiges Spiel mit grossem Versprechen,
+   sondern explizite, systematische, kumulative Arbeit an SEINEN eigenen
+   Woertern. Was dabei herauskommt, ist im besten Fall besseres
+   Schriftbild-Wissen zu bekanntem Wortschatz - nicht ein Sprung im Lesen.
+   ========================================================================= */
+const PHON_MUSTER = [
+  { id:'sh', schrift:'sh', wie:'wie in fish', re:/sh/i, stufe:1 },
+  { id:'ch', schrift:'ch', wie:'wie in lunch', re:/ch/i, stufe:1 },
+  { id:'th', schrift:'th', wie:'wie in three', re:/th/i, stufe:1 },
+  { id:'ck', schrift:'ck', wie:'wie in black', re:/ck/i, stufe:1 },
+  { id:'ng', schrift:'ng', wie:'wie in sing', re:/ng\b/i, stufe:1 },
+  { id:'ee', schrift:'ee', wie:'wie in green', re:/ee/i, stufe:1 },
+  { id:'ea', schrift:'ea', wie:'wie in eat', re:/ea/i, stufe:2 },
+  { id:'ai', schrift:'ai', wie:'wie in rain', re:/ai/i, stufe:2 },
+  { id:'ay', schrift:'ay', wie:'wie in play', re:/ay\b/i, stufe:2 },
+  { id:'oa', schrift:'oa', wie:'wie in boat', re:/oa/i, stufe:2 },
+  { id:'oo', schrift:'oo', wie:'wie in book', re:/oo/i, stufe:2 },
+  { id:'ou', schrift:'ou', wie:'wie in house', re:/ou/i, stufe:2 },
+  { id:'ar', schrift:'ar', wie:'wie in car', re:/ar/i, stufe:3 },
+  { id:'or', schrift:'or', wie:'wie in short', re:/or/i, stufe:3 },
+  { id:'ir', schrift:'ir', wie:'wie in girl', re:/ir/i, stufe:3 },
+  { id:'er', schrift:'er', wie:'wie in sister', re:/er\b/i, stufe:3 },
+  { id:'igh', schrift:'igh', wie:'wie in night', re:/igh/i, stufe:3 }
+];
+function phonMuster(id) { return PHON_MUSTER.filter(m => m.id === id)[0]; }
+/* Seine eigenen Woerter, nicht erfundene Uebungswoerter. */
+function phonWoerter(musterId) {
+  const m = phonMuster(musterId);
+  if (!m) return [];
+  const treffer = [];
+  try {
+    VOCAB.forEach(v => {
+      const w = String(v.en || '');
+      if (!/^[a-zA-Z]{3,12}$/.test(w)) return;      /* nur Einzelwoerter */
+      if (!m.re.test(w)) return;
+      /* Wer mehrere Muster traegt, taugt nicht als eindeutiges Beispiel. */
+      const andere = PHON_MUSTER.filter(x => x.id !== m.id && x.re.test(w));
+      if (andere.length > 1) return;
+      treffer.push(v);
+    });
+  } catch (e) {}
+  return treffer;
+}
+function phonVerfuegbar() {
+  return PHON_MUSTER.filter(m => phonWoerter(m.id).length >= 3);
+}
+function phonPlan(runde) {
+  const stufe = Math.min(3, Math.max(1, Math.floor(runde / 2) + 1));
+  const offen = phonVerfuegbar().filter(m => m.stufe <= stufe);
+  return { stufe: stufe, muster: offen.length ? offen : phonVerfuegbar() };
+}
+/* Drei Aufgabenarten. Alle drei verbinden Hoeren und Schriftbild - das ist
+   der Punkt der Sache; reines Wortbild-Raten waere Ganzwortmethode, und die
+   soll laut Leitlinie gerade nicht isoliert eingesetzt werden. */
+function phonAufgabe(runde) {
+  const plan = phonPlan(runde);
+  if (!plan.muster.length) return null;
+  const m = maWahl(plan.muster);
+  const woerter = phonWoerter(m.id);
+  if (!woerter.length) return null;
+  const v = maWahl(woerter);
+  const wort = String(v.en);
+  const art = maRnd(3);
+  const andereMuster = maMischen(PHON_MUSTER.filter(x => x.id !== m.id && !x.re.test(wort))).slice(0, 3);
+
+  if (art === 0) {
+    return { id:'ph_' + m.id, typ:'hoeren', muster:m, wort:wort, modus:'wahl', hoerbar:wort,
+      anweisung:'Hör zu. Welche Buchstaben stecken in dem Wort?',
+      zeile:`<button class='phon-hoeren' data-say='${wort}'>&#9654; ${wort} anhören</button>`,
+      optionen: maMischen([{ t:m.schrift, ok:true }].concat(andereMuster.map(x => ({ t:x.schrift, ok:false })))),
+      loesung: wort + ' schreibt sich mit ' + m.schrift + '.',
+      erklaerung: m.schrift + ' ' + m.wie + '.' };
+  }
+  if (art === 1) {
+    const luecke = wort.replace(new RegExp(m.schrift, 'i'), '<span class="ma-luecke">?</span>');
+    return { id:'ph_' + m.id, typ:'luecke', muster:m, wort:wort, modus:'wahl', hoerbar:wort,
+      anweisung:'Welche Buchstaben fehlen?',
+      zeile:`<div class='phon-wort'>${luecke}</div><button class='phon-hoeren' data-say='${wort}'>&#9654; anhören</button><div class='ma-klein'>${v.de || ''}</div>`,
+      optionen: maMischen([{ t:m.schrift, ok:true }].concat(andereMuster.map(x => ({ t:x.schrift, ok:false })))),
+      loesung: wort,
+      erklaerung: m.schrift + ' ' + m.wie + '.' };
+  }
+  const gleiche = phonWoerter(m.id).filter(x => x.en !== wort);
+  if (!gleiche.length) return phonAufgabe(runde);
+  const passend = maWahl(gleiche);
+  const falsche = [];
+  maMischen(PHON_MUSTER.filter(x => x.id !== m.id)).forEach(x => {
+    if (falsche.length >= 3) return;
+    const w = phonWoerter(x.id).filter(y => !m.re.test(String(y.en)));
+    if (w.length) falsche.push(maWahl(w).en);
+  });
+  if (falsche.length < 2) return phonAufgabe(runde);
+  return { id:'ph_' + m.id, typ:'gleiches', muster:m, wort:wort, modus:'wahl', hoerbar:wort,
+    anweisung:'Welches Wort hat dasselbe Muster wie ' + wort + '?',
+    zeile:`<div class='phon-wort'>${wort}</div><div class='ma-klein'>${m.schrift} ${m.wie}</div>`,
+    optionen: maMischen([{ t:String(passend.en), ok:true }].concat(falsche.map(f => ({ t:f, ok:false })))),
+    loesung: wort + ' und ' + passend.en + ' haben beide ' + m.schrift + '.',
+    erklaerung: m.schrift + ' ' + m.wie + '.' };
+}
+const PHON_DAUER_SEC = 300;
+let phonTimerId = null, phonStart = 0;
+function phonDauerMs() { return phonStart ? Math.min(PHON_DAUER_SEC*1000, Date.now() - phonStart) : PHON_DAUER_SEC*1000; }
+function phonLektion() {
+  phonStart = Date.now();
+  pauseBuilder();
+  session = { special:'phonics', history:[], current:null, errorFree:true };
+  const runde = (progress.phonRunden || 0);
+  const plan = phonPlan(runde);
+  const ende = Date.now() + PHON_DAUER_SEC * 1000;
+  let gesamt = 0, treffer = 0, sicher = null;
+  const proTyp = {}, fehler = [], meta = [];
+  let aufgabe = null, schonFalsch = false;
+  function restSek() { return Math.max(0, Math.round((ende - Date.now())/1000)); }
+  function zeitText() { const s = restSek(); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+  if (phonTimerId) clearInterval(phonTimerId);
+  phonTimerId = setInterval(() => {
+    const el = document.getElementById('phZeit');
+    if (el) { el.textContent = zeitText(); el.classList.toggle('knapp', restSek() <= 30); }
+    if (restSek() <= 0) { clearInterval(phonTimerId); phonTimerId = null; beenden(); }
+  }, 1000);
+  function beenden() {
+    if (phonTimerId) { clearInterval(phonTimerId); phonTimerId = null; }
+    session = null;
+    phonBilanz(runde, gesamt, treffer, proTyp, fehler, meta);
+  }
+  function naechste() {
+    aufgabe = phonAufgabe(runde);
+    if (!aufgabe) { beenden(); return; }
+    schonFalsch = false; sicher = null;
+    zeichne();
+  }
+  function werten(ok) {
+    gesamt++; if (ok) treffer++;
+    meta.push({ sicher: sicher, ok: ok });
+    const ty = aufgabe.typ;
+    proTyp[ty] = proTyp[ty] || { n:0, ok:0 };
+    proTyp[ty].n++; if (ok) proTyp[ty].ok++;
+    try { maReview(aufgabe.id, ok); } catch (e) {}
+    if (!ok) fehler.push({ satz: aufgabe.loesung, erklaerung: aufgabe.erklaerung });
+    if (restSek() <= 0) { setTimeout(beenden, 1200); return; }
+    setTimeout(naechste, ok ? 900 : 2200);
+  }
+  function zeichne() {
+    app.innerHTML = `
+      ${renderMissionHeader()}
+      <div class='session-shell'>
+        <div class='vt-leiste'>
+          <span class='vt-uhr' id='phZeit'>${zeitText()}</span>
+          <span class='vt-stand'>${treffer} von ${gesamt} richtig</span>
+          <button class='secondary-btn vt-stop' id='phStop'>Schluss</button>
+        </div>
+        <div class='card vt-karte'>
+          <div class='q-topic'>Laute und Buchstaben · Stufe ${plan.stufe}</div>
+          ${gesamt === 0 && metaLetzterVorsatz('phonics') ? `<div class='meta-vorsatz-oben'>Dein Vorsatz: ${metaLetzterVorsatz('phonics')}</div>` : ''}
+          <div class='ma-kopf'><div class='vt-anweisung'>${aufgabe.anweisung}</div>
+          <div class='ma-zeile'>${aufgabe.zeile}</div></div>
+          ${metaLeiste()}
+          <div class='options single-col' id='phOpts'>${aufgabe.optionen.map((o,i) => `<button class='opt-btn phon-opt' data-i='${i}'>${o.t}</button>`).join('')}</div>
+          <div class='vt-rueckmeldung' id='phFeedback'></div>
+          <details class='ma-leiter'><summary>Übersicht der Muster</summary>
+            <table class='ma-leiter-tabelle'>${plan.muster.map(m => `<tr><td><strong>${m.schrift}</strong></td><td>${m.wie}</td></tr>`).join('')}</table>
+          </details>
+        </div>
+      </div>`;
+    document.getElementById('phStop').onclick = beenden;
+    nachDemZeichnen(true, () => { if (phonTimerId) { clearInterval(phonTimerId); phonTimerId = null; } session = null; });
+    metaLeisteBinden(s => { sicher = s; });
+    app.querySelectorAll('[data-say]').forEach(b => b.onclick = () => { try { speak(b.dataset.say); } catch (e) {} });
+    /* Beim Hoeren-Typ gleich einmal vorsprechen - er soll hoeren, nicht lesen. */
+    if (aufgabe.typ === 'hoeren') { setTimeout(() => { try { speak(aufgabe.hoerbar); } catch (e) {} }, 350); }
+    app.querySelectorAll('#phOpts .opt-btn').forEach(b => b.onclick = () => {
+      if (b.disabled) return;
+      const o = aufgabe.optionen[+b.dataset.i];
+      const f = document.getElementById('phFeedback');
+      if (o.ok) {
+        b.classList.add('correct');
+        app.querySelectorAll('#phOpts .opt-btn').forEach(x => x.disabled = true);
+        if (f) f.innerHTML = `<span class='ma-gut'>Richtig.</span><span class='vt-zusatz'>${aufgabe.erklaerung}</span>`;
+        try { speak(aufgabe.wort); } catch (e) {}
+        werten(!schonFalsch);
+      } else {
+        schonFalsch = true; b.classList.add('retry'); b.disabled = true;
+        if (f) f.innerHTML = `<span class='vt-zusatz'>${aufgabe.erklaerung}</span>`;
+      }
+    });
+  }
+  naechste();
+}
+const PHON_TYP_NAME = { hoeren:'Hören und zuordnen', luecke:'Lücke füllen', gleiches:'Gleiches Muster finden' };
+function phonBilanz(runde, gesamt, treffer, proTyp, fehler, meta) {
+  const quote = gesamt ? Math.round(treffer / gesamt * 100) : 0;
+  const aufgestiegen = gesamt >= 5 && quote >= 65;
+  if (aufgestiegen) progress.phonRunden = (progress.phonRunden || 0) + 1;
+  const m = specialById('phonics');
+  let lohn = null;
+  const imBlock = pmBlockLaeuft('en') ? 1 : 0;
+  if (m && gesamt >= 8) { try { lohn = specialBelohnungGeben(m); } catch (e) {} }
+  try { pmBlockBeenden(gesamt); } catch (e) {}
+  try {
+    progress.session_log = progress.session_log || [];
+    progress.session_log.push({ d: dayStamp(0), t: Date.now(), ms: phonDauerMs(), n: gesamt, ok: treffer,
+      err: gesamt - treffer, steps: gesamt, neu: 0, isl: progress.current_island_id, art: 'phonics',
+      fach: 'en', pm: imBlock, done: true });
+    while (progress.session_log.length > SESSION_LOG_MAX) progress.session_log.shift();
+  } catch (e) {}
+  try { saveProgress(); } catch (e) {}
+  const spruch = gesamt === 0 ? 'Keine Aufgabe geschafft – beim nächsten Mal einfach loslegen.'
+    : quote >= 90 ? 'Die Muster hast du im Ohr. Genau so hilft dir das beim Schreiben.'
+    : quote >= 75 ? 'Stark. Du hörst die Buchstabengruppen schon heraus.'
+    : quote >= 50 ? 'Guter Anfang. Englisch schreibt sich selten so, wie es klingt – das braucht Zeit.'
+    : 'Noch wackelig, und das ist bei englischer Schrift völlig normal.';
+  app.innerHTML = `
+    ${renderMissionHeader()}
+    <div class='session-shell'>
+      <div class='card vt-bilanz-karte'>
+        <h2 style='margin:0 0 2px;'>Fünf Minuten Laute und Buchstaben</h2>
+        <div class='vt-quote'>${quote}%</div>
+        <div class='map-sub' style='margin:0 0 12px;'>${treffer} von ${gesamt} auf Anhieb richtig</div>
+        <p class='vt-spruch'>${spruch}</p>
+        ${metaStaerkeHtml(proTyp, PHON_TYP_NAME)}
+        ${(() => { const k = metaBilanzText(meta || []); return k ? `<div class='meta-kalib'>${k}</div>` : ''; })()}
+        ${metaPauseHtml()}
+        ${lohn && !lohn.schonHeute && (lohn.gems || lohn.sec) ? `<div class='vt-lohn'>+${lohn.gems} 💎 und +${Math.round(lohn.sec/60)} Min Spielzeit</div>` : ''}
+        ${fehler.length ? `<div class='vt-block-titel'>Nochmal anschauen</div><div class='gt-fehlerliste'>${fehler.slice(0,8).map(f => `<div class='gt-fehler'><span class='gt-fehler-satz'>${f.satz}</span><span class='vt-zusatz'>${f.erklaerung}</span></div>`).join('')}</div>` : ''}
+        ${gesamt >= 5 ? metaVorsatzHtml('phonics') : ''}
+        <button class='primary-btn' id='phNochmal' style='margin-top:14px;'>Nochmal 5 Minuten</button>
+        <button class='secondary-btn' id='phFertig' style='margin-top:8px;'>Fertig</button>
+      </div>
+    </div>`;
+  nachDemZeichnen(false);
+  metaVorsatzBinden();
+  document.getElementById('phNochmal').onclick = () => phonLektion();
+  document.getElementById('phFertig').onclick = () => renderLernen();
+}
 /* ---------- Fach-Umschalter ---------- */
 const MA_DAUER_SEC = 300;
 let maTimerId = null;
@@ -9043,7 +9441,8 @@ function renderProfile() {
       <p class="map-sub" style="font-size:.86rem; margin:0;">Blendet Edelsteine, Streak und Spielzeit während einer Lektion aus. Weniger Ablenkung neben der Aufgabe.</p>
       <button class="secondary-btn" id="fokusBtn">${progress.fokusmodus ? '✅ Fokusmodus ist an' : 'Fokusmodus einschalten'}</button>
     </div>
-    <button class="secondary-btn" id="profileKalBtn" style="margin-top:14px;">📅 Lernkalender (nur für Eltern)</button>
+    <button class="secondary-btn" id="profileDiagBtn" style="margin-top:14px;">🔍 Was wackelt gerade (nur für Eltern)</button>
+    <button class="secondary-btn" id="profileKalBtn" style="margin-top:10px;">📅 Lernkalender (nur für Eltern)</button>
     <button class="secondary-btn" id="profilePmBtn" style="margin-top:10px;">🗓️ Probenvorbereitung einstellen</button>
     <button class="secondary-btn" id="profileBackBtn">← Zurück zur Weltkarte</button>
   `;
@@ -9057,6 +9456,7 @@ function renderProfile() {
     btn.onclick = () => speak(btn.dataset.spruch);
   });
   document.getElementById('fokusBtn').onclick = () => { progress.fokusmodus = !progress.fokusmodus; try { saveProgress(); } catch (e) {} renderProfile(); };
+  document.getElementById('profileDiagBtn').onclick = renderDiagnose;
   document.getElementById('profileKalBtn').onclick = renderLernkalender;
   document.getElementById('profilePmBtn').onclick = () => renderPruefmodus();
   document.getElementById('profileBackBtn').onclick = renderMap;
@@ -20118,7 +20518,7 @@ preloadCreatureModels();
    Overlay eingehaengt (nicht Teil eines renderXyz()-Templates), bleibt also
    bildschirmuebergreifend sichtbar. pointer-events:none, damit es nie einen
    Klick auf darunterliegende Buttons/Pillen abfaengt. */
-const APP_VERSION = 'v95';
+const APP_VERSION = 'v96';
 (function renderVersionBadge(){
   try{
     const el = document.createElement('div');
